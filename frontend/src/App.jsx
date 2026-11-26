@@ -29,7 +29,7 @@ function WorkspaceScene(props) {
   if (inAR) {
     return (
       <SpatialLab
-        plot={props.result?.plot?.kind === 'newton' ? props.result.plot : null}
+        plot={['newton', 'bisection', 'secant'].includes(props.result?.plot?.kind) ? props.result.plot : null}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -41,7 +41,7 @@ function WorkspaceScene(props) {
     )
   }
 
-  if (props.result?.plot?.kind === 'newton') {
+  if (['newton', 'bisection', 'secant'].includes(props.result?.plot?.kind)) {
     return (
       <NewtonScene
         plot={props.result.plot}
@@ -64,11 +64,11 @@ export default function App() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
-    loadNewtonExample,
+    loadRootExample,
     formProps,
   } = useMathWorkspace()
 
-  const plot = result?.plot?.kind === 'newton'
+  const plot = ['newton', 'bisection', 'secant'].includes(result?.plot?.kind)
     ? result.plot
     : null
 
@@ -182,7 +182,7 @@ export default function App() {
                   playing={playing}
                   onSeek={seek}
                   onToggle={toggle}
-                  onLoadExample={loadNewtonExample}
+                  onLoadExample={loadRootExample}
                   loading={formProps.loading}
                   errorMsg={errorMsg}
                 />

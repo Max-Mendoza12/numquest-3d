@@ -76,6 +76,8 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
   )
 
   const active = plot.steps[index]
+  const isBisection = plot.kind === 'bisection'
+  const isSecant = plot.kind === 'secant'
 
   const format = n => Number(n.toPrecision(4)).toString()
 
@@ -86,19 +88,24 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
 
   const { xmin, xmax, ymin, ymax } = geometry
 
-  const tx1 = active.x + (ymin - active.fx) / active.slope
-  const tx2 = active.x + (ymax - active.fx) / active.slope
+  let tangent = null
 
-  const left = Math.max(xmin, Math.min(tx1, tx2))
-  const right = Math.min(xmax, Math.max(tx1, tx2))
+  if (!isBisection && Number.isFinite(active.slope) && active.slope !== 0) {
+    const tx1 = active.x + (ymin - active.fx) / active.slope
+    const tx2 = active.x + (ymax - active.fx) / active.slope
 
-  const tangentY = x =>
-    active.fx + active.slope * (x - active.x)
+    const left = Math.max(xmin, Math.min(tx1, tx2))
+    const right = Math.min(xmax, Math.max(tx1, tx2))
 
-  const tangent = [
-    [X(left), Y(tangentY(left)), 0.035],
-    [X(right), Y(tangentY(right)), 0.035],
-  ]
+    const lineY = x => active.fx + active.slope * (x - active.x)
+
+    if (left <= right) {
+      tangent = [
+        [X(left), Y(lineY(left)), 0.035],
+        [X(right), Y(lineY(right)), 0.035],
+      ]
+    }
+  }
 
   return (
     <group>
@@ -171,14 +178,69 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         />
       ))}
 
-      <Line
-        points={tangent}
-        color={COLORS.tangent}
-        dashed
-        dashSize={0.10}
-        gapSize={0.06}
-        lineWidth={2.5}
-      />
+      {isBisection && (
+        <group>
+          <mesh position={[
+            (X(active.a) + X(active.b)) / 2,
+            0,
+            -0.015
+          ]}>
+            <planeGeometry args={[
+              Math.abs(X(active.b) - X(active.a)),
+              3.3
+            ]} />
+            <meshBasicMaterial
+              color="#a78bfa"
+              transparent
+              opacity={0.18}
+              depthWrite={false}
+            />
+          </mesh>
+
+          {[active.a, active.b].map((x, i) => (
+            <Line
+              key={i}
+              points={[[X(x), -1.65, 0.02], [X(x), 1.65, 0.02]]}
+              color={COLORS.iteration}
+              dashed
+              dashSize={0.08}
+              gapSize={0.05}
+              lineWidth={2}
+            />
+          ))}
+
+          <Point
+            position={[X(active.a), Y(active.fa), 0.04]}
+            color={COLORS.iteration}
+          />
+          <Point
+            position={[X(active.b), Y(active.fb), 0.04]}
+            color={COLORS.iteration}
+          />
+        </group>
+      )}
+
+      {tangent && (
+        <Line
+          points={tangent}
+          color={COLORS.tangent}
+          dashed
+          dashSize={0.10}
+          gapSize={0.06}
+          lineWidth={2.5}
+        />
+      )}
+
+      {isSecant && (
+        <Point
+          position={[
+            X(active.previous_x),
+            Y(active.previous_fx),
+            0.04
+          ]}
+          color={COLORS.iteration}
+        />
+      )}
 
       <Line
         points={[

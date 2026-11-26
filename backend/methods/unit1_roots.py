@@ -52,6 +52,15 @@ def bisection_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 1
             "b": round(b, 8),
             "root_approx": round(c, 8),
             "fx": round(fc, 8),
+            "geometry": {
+                "a": a,
+                "b": b,
+                "fa": fa,
+                "fb": fb,
+                "x": c,
+                "fx": fc,
+                "next_x": c,
+            },
             "error_pct": round(err, 6),
         })
 
@@ -251,6 +260,14 @@ def secant_method(f, x0: float, x1: float, tol: float = 1e-6, max_iter: int = 10
             "x1": round(x1, 8),
             "root_approx": round(x2, 8),
             "fx": round(float(f(x2)), 8),
+            "geometry": {
+                "previous_x": x0,
+                "previous_fx": fx0,
+                "x": x1,
+                "fx": fx1,
+                "slope": (fx1 - fx0) / (x1 - x0),
+                "next_x": x2,
+            },
             "error_pct": round(err, 6),
         })
 

@@ -93,7 +93,10 @@ export function useMathWorkspace() {
       setCategoryId(preset.categoryId)
       setMethod(preset.method)
       setExpression(preset.expression)
-      setX0(preset.x0)
+      if (preset.x0 !== undefined) setX0(preset.x0)
+      if (preset.x1 !== undefined) setX1(preset.x1)
+      if (preset.a !== undefined) setA(preset.a)
+      if (preset.b !== undefined) setB(preset.b)
       setTol(preset.tol)
     }
     setLoading(true)
@@ -170,10 +173,11 @@ export function useMathWorkspace() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
-    loadNewtonExample: example => handleCalculate(null, {
+    loadRootExample: example => handleCalculate(null, {
       ...example,
-      categoryId: 'open_roots',
-      method: 'newton',
+      categoryId: example.method === 'bisection'
+        ? 'closed_roots' : 'open_roots',
+      method: example.method ?? 'newton',
       tol: 0.0001,
     }),
     formProps: {

@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 
-def build_newton_plot(f, result, expression):
+def build_newton_plot(f, result, expression, kind="newton"):
     steps = [
         item["geometry"]
         for item in result.get("iterations", [])
@@ -21,6 +21,17 @@ def build_newton_plot(f, result, expression):
         for step in steps
         for value in (step["x"], step["next_x"])
     ]
+
+    if kind == "bisection":
+        positions.extend(
+            value for step in steps
+            for value in (step["a"], step["b"])
+        )
+
+    if kind == "secant":
+        positions.extend(
+            step["previous_x"] for step in steps
+        )
 
     low, high = min(positions), max(positions)
     span = max(high - low, 2.0)
@@ -57,6 +68,17 @@ def build_newton_plot(f, result, expression):
         return None
 
     values.extend(step["fx"] for step in steps)
+    if kind == "bisection":
+        values.extend(
+            value for step in steps
+            for value in (step["fa"], step["fb"])
+        )
+
+    if kind == "secant":
+        values.extend(
+            step["previous_fx"] for step in steps
+        )
+
     values.append(0.0)
 
     ymin, ymax = min(values), max(values)
@@ -75,7 +97,7 @@ def build_newton_plot(f, result, expression):
         return None
 
     return {
-        "kind": "newton",
+        "kind": kind,
         "expression": expression,
         "domain": [xmin, xmax],
         "range": [ymin, ymax],

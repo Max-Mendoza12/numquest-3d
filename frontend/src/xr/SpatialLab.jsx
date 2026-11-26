@@ -6,9 +6,38 @@ import SpatialButton from './SpatialButton.jsx'
 import SpatialPanel from './SpatialPanel.jsx'
 
 const EXAMPLES = [
-  { label: 'Polinomio cúbico', expression: 'x^3-2*x-5', x0: 2 },
-  { label: 'Raíz cuadrada', expression: 'x^2-2', x0: 1.5 },
-  { label: 'Trigonométrica', expression: 'cos(x)-x', x0: 1 },
+  {
+    label: 'Newton · Cúbico',
+    method: 'newton',
+    expression: 'x^3-2*x-5',
+    x0: 2,
+  },
+  {
+    label: 'Newton · Cuadrático',
+    method: 'newton',
+    expression: 'x^2-2',
+    x0: 1.5,
+  },
+  {
+    label: 'Newton · Trigonométrico',
+    method: 'newton',
+    expression: 'cos(x)-x',
+    x0: 1,
+  },
+  {
+    label: 'Bisección',
+    method: 'bisection',
+    expression: 'x^2-2',
+    a: 1,
+    b: 2,
+  },
+  {
+    label: 'Secante',
+    method: 'secant',
+    expression: 'x^2-2',
+    x0: 1,
+    x1: 2,
+  },
 ]
 
 function Label({ children, position, color = '#e2e8f0', size = 0.032, width = 0.48 }) {
@@ -47,6 +76,14 @@ export default function SpatialLab({
 
   const total = plot?.steps?.length ?? 0
   const current = plot?.steps?.[step]
+  const isBisection = plot?.kind === 'bisection'
+  const isSecant = plot?.kind === 'secant'
+
+  const formula = isBisection
+    ? 'c = (a + b) / 2'
+    : isSecant
+      ? 'x2 = x1 - f(x1) / pendiente'
+      : "x siguiente = x - f(x) / f'(x)"
 
   return (
     <group position={[0, 1.4, -2.25]} scale={scale}>
@@ -67,15 +104,19 @@ export default function SpatialLab({
         rotation={[0, 0.18, 0]}
         width={0.53}
         height={1.02}
-        title="Ejemplos Newton"
+        title="Métodos y ejemplos"
       >
         {EXAMPLES.map((example, index) => (
           <SpatialButton
-            key={example.expression}
+            key={example.label}
             label={example.label}
-            position={[0, 0.29 - index * 0.135, 0.035]}
+            position={[0, 0.32 - index * 0.10, 0.035]}
             width={0.45}
-            color={plot?.expression === example.expression ? '#155e75' : '#203b54'}
+            color={
+              plot?.kind === example.method &&
+              plot?.expression === example.expression
+                ? '#155e75' : '#203b54'
+            }
             disabled={loading}
             onClick={() => onLoadExample(example)}
           />
@@ -118,7 +159,7 @@ export default function SpatialLab({
         ) : (
           <>
             <Label position={[0, 0.30, 0.04]} size={0.06} width={1.3} color="#22d3ee">
-              Newton-Raphson
+              Laboratorio de raíces
             </Label>
             <Label position={[0, 0.04, 0.04]} size={0.043} width={1.25}>
               {loading ? 'Calculando...' : 'Selecciona un ejemplo del panel izquierdo.'}
@@ -147,7 +188,7 @@ export default function SpatialLab({
               size={0.054}
               width={0.54}
             >
-              {number(plot.root)}
+              {number(plot.root ?? plot.steps.at(-1).next_x)}
             </Label>
 
             <Label position={[0, 0.12, 0.04]} color="#a78bfa">
@@ -155,23 +196,33 @@ export default function SpatialLab({
             </Label>
 
             <Label position={[0, 0.015, 0.04]}>
-              {`x actual = ${number(current.x)}`}
+              {isBisection
+                ? `a = ${number(current.a)}`
+                : isSecant
+                  ? `x0 = ${number(current.previous_x)}`
+                  : `x actual = ${number(current.x)}`}
             </Label>
 
             <Label position={[0, -0.065, 0.04]}>
-              {`f(x) = ${number(current.fx)}`}
+              {isBisection
+                ? `b = ${number(current.b)}`
+                : isSecant
+                  ? `x1 = ${number(current.x)}`
+                  : `f(x) = ${number(current.fx)}`}
             </Label>
 
             <Label position={[0, -0.145, 0.04]}>
-              {`f'(x) = ${number(current.slope)}`}
+              {isBisection
+                ? `f(c) = ${number(current.fx)}`
+                : `Pendiente = ${number(current.slope)}`}
             </Label>
 
             <Label position={[0, -0.225, 0.04]} color="#fbbf24">
-              {`x siguiente = ${number(current.next_x)}`}
+              {`${isBisection ? 'c' : 'x siguiente'} = ${number(current.next_x)}`}
             </Label>
 
             <Label position={[0, -0.36, 0.04]} color="#a78bfa">
-              x siguiente = x - f(x) / f'(x)
+              {formula}
             </Label>
           </>
         ) : (

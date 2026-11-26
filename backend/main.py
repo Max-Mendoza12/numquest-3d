@@ -174,9 +174,9 @@ def solve_root(req: RootRequest):
         else:
             raise HTTPException(status_code=400, detail="Método de raíces no reconocido")
 
-        if req.method == "newton":
+        if req.method in ("newton", "bisection", "secant"):
             res["plot"] = build_newton_plot(
-                f, res, req.expression
+                f, res, req.expression, kind=req.method
             )
 
         res["latex"] = parsed["latex"]
