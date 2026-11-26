@@ -1,297 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Line, Text, Grid } from '@react-three/drei'
-import { XR, createXRStore } from '@react-three/xr'
-import * as THREE from 'three'
+import { XR } from '@react-three/xr'
+import { CATEGORIES } from './config/categories.js'
+import { xrStore } from './xr/xrStore.js'
+import MathScene3D from './scenes/MathScene3D.jsx'
+import ResultPanel from './components/ResultPanel.jsx'
+import { calculateMath } from './services/mathApi.js'
 import './App.css'
-
-const xrStore = createXRStore({
-  hand: true,
-  controller: true,
-})
-
-// ==========================================
-// CATÁLOGO DE LAS 7 CATEGORÍAS Y 33 MÉTODOS
-// ==========================================
-const CATEGORIES = [
-  {
-    id: 'closed_roots',
-    label: 'Cerrados',
-    icon: '📐',
-    unitTitle: 'Unidad 1 · Punto Flotante y Métodos Cerrados',
-    methods: [
-      { id: 'float_ieee', label: 'IEEE 754 (32/64 bits)', tag: 'Binario' },
-      { id: 'bisection', label: 'Bisección', tag: 'Lineal' },
-      { id: 'false_position', label: 'Falsa Posición (Regula Falsi)', tag: 'Superlineal' },
-    ],
-  },
-  {
-    id: 'open_roots',
-    label: 'Abiertos',
-    icon: '🎯',
-    unitTitle: 'Unidad 1 · Métodos Abiertos y Raíces Múltiples',
-    methods: [
-      { id: 'fixed_point', label: 'Punto Fijo g(x)', tag: 'Iterativo' },
-      { id: 'newton', label: 'Newton-Raphson', tag: 'Cuadrático' },
-      { id: 'newton_multiple', label: 'Newton Raíces Múltiples', tag: 'Multiplicidad' },
-      { id: 'secant', label: 'Secante', tag: 'Orden 1.618' },
-      { id: 'steffensen', label: 'Steffensen', tag: 'Sin derivadas' },
-      { id: 'muller', label: 'Müller (Raíces Complejas)', tag: 'Parabólico' },
-    ],
-  },
-  {
-    id: 'polynomials',
-    label: 'Polinomios',
-    icon: '🧮',
-    unitTitle: 'Unidad 2 · Polinomios y Aceleración',
-    methods: [
-      { id: 'horner', label: 'Método de Horner', tag: 'Div. Sintética' },
-      { id: 'newton_horner', label: 'Newton-Horner', tag: 'Raíz Real' },
-      { id: 'deflation', label: 'Deflación Polinomial', tag: 'Todas las raíces' },
-      { id: 'aitken', label: 'Aceleración Aitken Δ²', tag: 'Sucesiones' },
-      { id: 'bairstow', label: 'Método de Bairstow', tag: 'Factor Cuadrático' },
-    ],
-  },
-  {
-    id: 'interpolation',
-    label: 'Interpolación',
-    icon: '📈',
-    unitTitle: 'Unidad 3 · Interpolación y Aproximación',
-    methods: [
-      { id: 'vandermonde', label: 'Matriz de Vandermonde', tag: 'Sistema Lineal' },
-      { id: 'lagrange', label: 'Polinomio de Lagrange', tag: 'Bases L_i(x)' },
-      { id: 'neville', label: 'Método de Neville', tag: 'Recursivo' },
-      { id: 'divided_differences', label: 'Diferencias Divididas (Newton)', tag: 'Progresivo' },
-      { id: 'hermite', label: 'Interpolación de Hermite', tag: 'Con derivadas' },
-      { id: 'cubic_spline', label: 'Splines Cúbicos (Natural / Sujeto)', tag: 'Trazadores' },
-    ],
-  },
-  {
-    id: 'calculus',
-    label: 'Cálculo',
-    icon: '∫',
-    unitTitle: 'Unidad 4 · Derivación e Integración Numérica',
-    methods: [
-      { id: 'diff', label: 'Derivación Numérica (2, 3 y 5 pts)', tag: 'Diferencias' },
-      { id: 'richardson', label: 'Extrapolación de Richardson', tag: 'Orden Superior' },
-      { id: 'trapezoid', label: 'Regla del Trapecio Compuesta', tag: 'O(h²)' },
-      { id: 'simpson_1_3', label: 'Regla de Simpson 1/3', tag: 'O(h⁴) · n par' },
-      { id: 'simpson_3_8', label: 'Regla de Simpson 3/8', tag: 'O(h⁴) · n=3k' },
-      { id: 'romberg', label: 'Integración de Romberg', tag: 'Tabla Triangular' },
-      { id: 'adaptive', label: 'Cuadratura Adaptativa', tag: 'Recursiva' },
-      { id: 'gaussian', label: 'Cuadratura Gauss-Legendre', tag: '2 a 5 nodos' },
-    ],
-  },
-  {
-    id: 'linear_systems',
-    label: 'Sistemas',
-    icon: '🧊',
-    unitTitle: 'Unidad 5 · Sistemas de Ecuaciones Lineales',
-    methods: [
-      { id: 'gauss_trivial', label: 'Eliminación Gaussiana (Trivial)', tag: 'Sin pivoteo' },
-      { id: 'gauss_partial', label: 'Eliminación Gaussiana (Pivoteo Parcial)', tag: 'Estable' },
-      { id: 'gauss_scaled', label: 'Eliminación Gaussiana (Pivoteo Escalado)', tag: 'Alta precisión' },
-    ],
-  },
-  {
-    id: 'ode',
-    label: 'EDO',
-    icon: '🌊',
-    unitTitle: 'Unidad 5 · Ecuaciones Diferenciales Ordinarias',
-    methods: [
-      { id: 'euler', label: 'Método de Euler', tag: 'Orden 1' },
-      { id: 'taylor2', label: 'Taylor de Orden 2 (Simbólico)', tag: 'Orden 2' },
-      { id: 'modified_euler', label: 'Euler Modificado (Heun)', tag: 'Predictor-Corrector' },
-      { id: 'midpoint', label: 'Método del Punto Medio', tag: 'Orden 2' },
-      { id: 'rk4', label: 'Runge-Kutta de Orden 4 (RK4)', tag: 'Estándar Oro' },
-    ],
-  },
-]
-
-// ==========================================
-// ESCENA 3D MULTI-MODO (PC + META QUEST 3)
-// ==========================================
-function MathScene3D({ category, method, result, titleLabel }) {
-  // Puntos para raíces / iteraciones
-  const iterPoints = useMemo(() => {
-    if (!result?.iterations?.length) return []
-    return result.iterations.map((it, idx) => {
-      const xVal = it.root_approx ?? it.x_real ?? it.r ?? 0
-      const yVal = it.fx ?? it.x_imag ?? it.s ?? 0
-      const zDepth = (idx - result.iterations.length / 2) * 0.16
-      return {
-        pos: [
-          THREE.MathUtils.clamp(xVal, -6, 6),
-          THREE.MathUtils.clamp(yVal, -4, 4),
-          zDepth,
-        ],
-        label: `#${it.iter}: ${Number(xVal).toFixed(4)}`,
-      }
-    })
-  }, [result])
-
-  // Curva suave para interpolación
-  const curveCoords = useMemo(() => {
-    if (!result?.curve_points?.length) return []
-    return result.curve_points.map((pt) => [
-      THREE.MathUtils.clamp(pt.x, -6, 6),
-      THREE.MathUtils.clamp(pt.y, -4, 4),
-      0,
-    ])
-  }, [result])
-
-  // Nodos de integración o derivación
-  const calcNodes = useMemo(() => {
-    const raw = result?.nodes || result?.evaluated_nodes || result?.gauss_nodes || []
-    return raw.map((n) => ({
-      x: THREE.MathUtils.clamp(n.x ?? n.x_mapped ?? 0, -6, 6),
-      y: THREE.MathUtils.clamp(n.y ?? n.fx ?? 0, -4, 4),
-    }))
-  }, [result])
-
-  // Trayectoria EDO (t, y)
-  const odeCoords = useMemo(() => {
-    if (!result?.trajectory?.length) return []
-    return result.trajectory.map((pt) => [
-      THREE.MathUtils.clamp(pt.t, -6, 6),
-      THREE.MathUtils.clamp(pt.y, -4, 4),
-      0,
-    ])
-  }, [result])
-
-  return (
-    <>
-      <ambientLight intensity={0.85} />
-      <directionalLight position={[6, 10, 6]} intensity={1.3} />
-      <OrbitControls makeDefault />
-
-      <Grid
-        position={[0, -2.2, 0]}
-        args={[16, 16]}
-        cellSize={0.5}
-        cellThickness={0.6}
-        cellColor="#1e293b"
-        sectionSize={2}
-        sectionThickness={1.2}
-        sectionColor="#38bdf8"
-        fadeDistance={20}
-      />
-
-      {/* Ejes cartesianos 3D */}
-      <Line points={[[-6.5, 0, 0], [6.5, 0, 0]]} color="#64748b" lineWidth={1.5} />
-      <Line points={[[0, -4.5, 0], [0, 4.5, 0]]} color="#64748b" lineWidth={1.5} />
-
-      <Text position={[0, 3.4, -0.5]} fontSize={0.24} color="#38bdf8" maxWidth={10}>
-        {titleLabel}
-      </Text>
-
-      {/* 1. VISUALIZACIÓN DE RAÍCES Y POLINOMIOS */}
-      {iterPoints.length > 0 && (
-        <>
-          {iterPoints.length > 1 && (
-            <Line points={iterPoints.map((p) => p.pos)} color="#f59e0b" lineWidth={2.5} />
-          )}
-          {iterPoints.map((pt, idx) => {
-            const isLast = idx === iterPoints.length - 1
-            return (
-              <group key={idx} position={pt.pos}>
-                <mesh>
-                  <sphereGeometry args={[isLast ? 0.15 : 0.08, 24, 24]} />
-                  <meshStandardMaterial
-                    color={isLast ? '#10b981' : '#f59e0b'}
-                    emissive={isLast ? '#059669' : '#d97706'}
-                    emissiveIntensity={0.65}
-                  />
-                </mesh>
-                {(isLast || idx === 0 || iterPoints.length <= 8) && (
-                  <Text position={[0, 0.24, 0]} fontSize={0.13} color={isLast ? '#34d399' : '#e2e8f0'}>
-                    {pt.label}
-                  </Text>
-                )}
-              </group>
-            )
-          })}
-        </>
-      )}
-
-      {/* 2. VISUALIZACIÓN DE INTERPOLACIÓN */}
-      {curveCoords.length > 1 && (
-        <>
-          <Line points={curveCoords} color="#38bdf8" lineWidth={3} />
-          {result?.y_eval !== undefined && (
-            <group
-              position={[
-                THREE.MathUtils.clamp(result.x_eval, -6, 6),
-                THREE.MathUtils.clamp(result.y_eval, -4, 4),
-                0.05,
-              ]}
-            >
-              <mesh>
-                <sphereGeometry args={[0.16, 24, 24]} />
-                <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={0.8} />
-              </mesh>
-              <Text position={[0, 0.28, 0]} fontSize={0.16} color="#34d399">
-                {`P(${result.x_eval}) = ${Number(result.y_eval).toFixed(4)}`}
-              </Text>
-            </group>
-          )}
-        </>
-      )}
-
-      {/* 3. VISUALIZACIÓN DE INTEGRACIÓN / DERIVACIÓN */}
-      {calcNodes.length > 0 && (
-        <>
-          {calcNodes.length > 1 && (
-            <Line points={calcNodes.map((n) => [n.x, n.y, 0])} color="#818cf8" lineWidth={3} />
-          )}
-          {calcNodes.map((n, i) => (
-            <group key={i}>
-              <Line points={[[n.x, 0, 0], [n.x, n.y, 0]]} color="#38bdf8" lineWidth={1.5} />
-              <mesh position={[n.x, n.y, 0]}>
-                <sphereGeometry args={[0.08, 16, 16]} />
-                <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.7} />
-              </mesh>
-            </group>
-          ))}
-        </>
-      )}
-
-      {/* 4. VISUALIZACIÓN DE TRAYECTORIA EDO */}
-      {odeCoords.length > 1 && (
-        <>
-          <Line points={odeCoords} color="#10b981" lineWidth={3} />
-          {odeCoords.map((pos, idx) => (
-            <mesh key={idx} position={pos}>
-              <sphereGeometry args={[idx === odeCoords.length - 1 ? 0.14 : 0.06, 16, 16]} />
-              <meshStandardMaterial
-                color={idx === odeCoords.length - 1 ? '#38bdf8' : '#10b981'}
-                emissive="#059669"
-                emissiveIntensity={0.6}
-              />
-            </mesh>
-          ))}
-        </>
-      )}
-
-      {/* 5. VISUALIZACIÓN DE VECTOR SOLUCIÓN EN SISTEMAS LINEALES */}
-      {category === 'linear_systems' && result?.solution && (
-        <group position={[0, 0.5, 0]}>
-          {result.solution.map((val, idx) => (
-            <group key={idx} position={[(idx - (result.solution.length - 1) / 2) * 1.4, 0, 0]}>
-              <mesh position={[0, THREE.MathUtils.clamp(val / 2, -2, 2), 0]}>
-                <boxGeometry args={[0.6, Math.max(0.2, Math.min(4, Math.abs(val))), 0.6]} />
-                <meshStandardMaterial color="#818cf8" emissive="#4f46e5" emissiveIntensity={0.45} />
-              </mesh>
-              <Text position={[0, -1.6, 0]} fontSize={0.18} color="#e2e8f0">
-                {`x${idx + 1} = ${val}`}
-              </Text>
-            </group>
-          ))}
-        </group>
-      )}
-    </>
-  )
-}
 
 // ==========================================
 // APLICACIÓN PRINCIPAL
@@ -377,112 +92,46 @@ export default function App() {
     setErrorMsg('')
   }
 
-  const parseNumberList = (str) =>
-    str
-      .split(',')
-      .map((s) => Number(s.trim()))
-      .filter((n) => !Number.isNaN(n))
-
   const handleCalculate = async (e) => {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
 
     try {
-      let url = ''
-      let options = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }
-
-      if (method === 'float_ieee') {
-        url = `/api/unit1/float/${Number(floatNum)}`
-        options = { method: 'GET' }
-      } else if (categoryId === 'closed_roots' || categoryId === 'open_roots') {
-        url = '/api/unit1/roots'
-        options.body = JSON.stringify({
-          method,
-          expression,
-          a: Number(a),
-          b: Number(b),
-          x0: Number(x0),
-          x1: Number(x1),
-          x2: Number(x2),
-          tol: Number(tol),
-          max_iter: 60,
-        })
-      } else if (categoryId === 'polynomials') {
-        url = '/api/unit2/polynomials'
-        options.body = JSON.stringify({
-          method,
-          coeffs: parseNumberList(coeffsStr),
-          expression,
-          x0: Number(x0),
-          r: Number(bairstowR),
-          s: Number(bairstowS),
-          tol: Number(tol),
-          max_iter: 60,
-        })
-      } else if (categoryId === 'interpolation') {
-        url = '/api/unit3/interpolation'
-        options.body = JSON.stringify({
-          method,
-          x_pts: parseNumberList(xPtsStr),
-          y_pts: parseNumberList(yPtsStr),
-          dy_pts: parseNumberList(dyPtsStr),
-          x_eval: Number(xEval),
-          boundary_type: splineType,
-          fp0: Number(fp0),
-          fpn: Number(fpn),
-        })
-      } else if (categoryId === 'calculus') {
-        url = '/api/unit4/calculus'
-        options.body = JSON.stringify({
-          method,
-          expression,
-          x0: Number(x0),
-          h: Number(hStep),
-          points: Number(calcPoints),
-          formula: diffFormula,
-          levels: Number(levels),
-          a: Number(a),
-          b: Number(b),
-          n: Number(nIntervals),
-          tol: Number(tol),
-        })
-      } else if (categoryId === 'linear_systems') {
-        url = '/api/unit5/linear-system'
-        const pivotingMap = {
-          gauss_trivial: 'trivial',
-          gauss_partial: 'partial',
-          gauss_scaled: 'scaled',
-        }
-        const rows = matrixStr
-          .trim()
-          .split('\n')
-          .map((row) => parseNumberList(row))
-        options.body = JSON.stringify({
-          A: rows,
-          b: parseNumberList(vectorBStr),
-          pivoting: pivotingMap[method] || 'partial',
-        })
-      } else if (categoryId === 'ode') {
-        url = '/api/unit5/ode'
-        options.body = JSON.stringify({
-          method,
-          expression: odeExpr,
-          t0: Number(t0),
-          y0: Number(y0),
-          tf: Number(tf),
-          n_steps: Number(nSteps),
-        })
-      }
-
-      const response = await fetch(url, options)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Error en el servidor matemático')
-      }
+      const data = await calculateMath({
+        method,
+        categoryId,
+        floatNum,
+        expression,
+        a,
+        b,
+        x0,
+        x1,
+        x2,
+        tol,
+        coeffsStr,
+        bairstowR,
+        bairstowS,
+        xPtsStr,
+        yPtsStr,
+        dyPtsStr,
+        xEval,
+        splineType,
+        fp0,
+        fpn,
+        hStep,
+        calcPoints,
+        diffFormula,
+        levels,
+        nIntervals,
+        matrixStr,
+        vectorBStr,
+        odeExpr,
+        t0,
+        y0,
+        tf,
+        nSteps,
+      })
       if (data.converged === false || data.success === false) {
         setErrorMsg(data.error || 'No se pudo completar el cálculo')
       }
@@ -846,52 +495,7 @@ export default function App() {
 
         {errorMsg && <div className="error-banner">{errorMsg}</div>}
 
-        {/* TARJETA DE RESULTADO DESTACADO */}
-        {result && (
-          <div className="result-card">
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Resultado Obtenido
-            </span>
-            <div className="result-highlight">
-              {result.root !== undefined && typeof result.root === 'number' && `Raíz: ${result.root.toFixed(8)}`}
-              {result.root !== undefined && typeof result.root === 'object' && `Raíz: ${result.root.real} + ${result.root.imag}i`}
-              {result.roots && `Raíces: ${result.roots.map((r) => `${r.real}${r.imag ? ` + ${r.imag}i` : ''}`).join(' | ')}`}
-              {result.p_x0 !== undefined && `P(${result.x0}) = ${result.p_x0} | P'(${result.x0}) = ${result.dp_x0}`}
-              {result.y_eval !== undefined && `P(${result.x_eval}) = ${result.y_eval}`}
-              {result.derivative !== undefined && `f'(${result.x0}) = ${result.derivative}`}
-              {result.integral !== undefined && `Integral ≈ ${result.integral}`}
-              {result.solution && `x = [${result.solution.join(', ')}]`}
-              {result.final_y !== undefined && `y(${result.final_t}) = ${result.final_y}`}
-              {result.ieee754_32 && `32-bit: ${result.ieee754_32.binary}`}
-            </div>
-          </div>
-        )}
-
-        {/* TABLA RESUMIDA DE ITERACIONES O PASOS */}
-        {result?.iterations?.length > 0 && (
-          <div className="data-table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Aproximación</th>
-                  <th>Error %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.iterations.map((it) => (
-                  <tr key={it.iter}>
-                    <td>{it.iter}</td>
-                    <td style={{ color: '#34d399' }}>
-                      {it.root_approx !== undefined ? it.root_approx : it.x_real !== undefined ? `${it.x_real}+${it.x_imag}i` : `r=${it.r}`}
-                    </td>
-                    <td>{it.error_pct ?? it.error_r_pct ?? 0}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <ResultPanel result={result} />
       </aside>
 
       {/* ESCENARIO 3D / WEBXR */}
@@ -903,7 +507,6 @@ export default function App() {
           <XR store={xrStore}>
             <MathScene3D
               category={categoryId}
-              method={method}
               result={result}
               titleLabel={sceneTitle}
             />
