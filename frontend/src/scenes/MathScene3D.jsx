@@ -54,7 +54,18 @@ export default function MathScene3D({ category, result, titleLabel }) {
     <>
       <ambientLight intensity={0.85} />
       <directionalLight position={[6, 10, 6]} intensity={1.3} />
-      <OrbitControls makeDefault />
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.12}
+        rotateSpeed={0.28}
+        zoomSpeed={0.45}
+        panSpeed={0.35}
+        minDistance={3.5}
+        maxDistance={22}
+        minPolarAngle={0.2}
+        maxPolarAngle={Math.PI * 0.85}
+      />
 
       <Grid
         position={[0, -2.2, 0]}
