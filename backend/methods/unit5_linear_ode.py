@@ -1,5 +1,6 @@
 import numpy as np
 import sympy as sp
+from core.parser import parse_math_expression
 
 
 # ==========================================
@@ -92,8 +93,9 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
 # ==========================================
 def _compile_ode_function(expr_str: str):
     t_sym, y_sym = sp.symbols("t y")
-    clean_expr = expr_str.replace("^", "**")
-    sym_expr = sp.sympify(clean_expr)
+    sym_expr = parse_math_expression(
+        expr_str, {"t": t_sym, "y": y_sym}
+    )
     f_num = sp.lambdify((t_sym, y_sym), sym_expr, modules=["numpy"])
     return f_num, sym_expr, t_sym, y_sym
 

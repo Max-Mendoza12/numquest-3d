@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-import sympy as sp
 
 from core.parser import build_function
 from methods.unit1_roots import (
@@ -163,9 +162,7 @@ def solve_root(req: RootRequest):
         elif req.method == "newton":
             res = newton_raphson_method(f, df, req.x0, req.tol, req.max_iter)
         elif req.method == "newton_multiple":
-            x_sym = sp.Symbol("x")
-            sym_expr = sp.sympify(req.expression.replace("^", "**"))
-            d2f = sp.lambdify(x_sym, sp.diff(sym_expr, x_sym, 2), modules=["numpy"])
+            d2f = parsed["d2f"]
             res = newton_multiple_roots_method(f, df, d2f, req.x0, req.tol, req.max_iter)
         elif req.method == "secant":
             res = secant_method(f, req.x0, req.x1, req.tol, req.max_iter)
