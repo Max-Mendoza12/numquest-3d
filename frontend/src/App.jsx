@@ -4,6 +4,7 @@ import { XR, useXR } from '@react-three/xr'
 import { CATEGORIES } from './config/categories.js'
 import { xrStore } from './xr/xrStore.js'
 import SpatialLab from './xr/SpatialLab.jsx'
+import ImmersiveLab from './immersive/ImmersiveLab.jsx'
 import { useIterationPlayer } from './hooks/useIterationPlayer.js'
 import MathScene3D from './scenes/MathScene3D.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
@@ -24,7 +25,26 @@ const CATEGORY_LABELS = {
 }
 
 function WorkspaceScene(props) {
-  const inAR = useXR((state) => state.mode === 'immersive-ar')
+  const mode = useXR(state => state.mode)
+  const inAR = mode === 'immersive-ar'
+  const inVR = mode === 'immersive-vr'
+
+  if (inVR || (!inAR && props.immersivePreview)) {
+    return (
+      <ImmersiveLab
+        plot={props.result?.plot?.kind === 'newton'
+          ? props.result.plot : null}
+        step={props.step}
+        playing={props.playing}
+        onSeek={props.onSeek}
+        onToggle={props.onToggle}
+        onLoadExample={props.onLoadExample}
+        loading={props.loading}
+        errorMsg={props.errorMsg}
+        immersive={inVR}
+      />
+    )
+  }
 
   if (inAR) {
     return (
@@ -56,6 +76,8 @@ function WorkspaceScene(props) {
 export default function App() {
   const [xrSupported, setXrSupported] = useState(false)
   const [xrError, setXrError] = useState('')
+  const [vrSupported, setVrSupported] = useState(false)
+  const [immersivePreview, setImmersivePreview] = useState(false)
 
   const {
     categoryId,
@@ -80,6 +102,10 @@ export default function App() {
 
   useEffect(() => {
     if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-vr')
+        .then(setVrSupported)
+        .catch(() => setVrSupported(false))
+
       navigator.xr.isSessionSupported('immersive-ar')
         .then(setXrSupported)
         .catch(() => setXrSupported(false))
@@ -120,6 +146,29 @@ export default function App() {
             <i />
             Motor matemático
           </span>
+
+          <button
+            className="xr-pill-btn"
+            onClick={() => setImmersivePreview(v => !v)}
+          >
+            {immersivePreview ? 'Vista académica' : 'Explorar XYZ'}
+          </button>
+
+          {vrSupported && (
+            <button
+              className="xr-pill-btn"
+              onClick={async () => {
+                setXrError('')
+                try {
+                  await xrStore.enterVR()
+                } catch (error) {
+                  setXrError(error.message || 'No se pudo iniciar VR')
+                }
+              }}
+            >
+              Entrar en VR
+            </button>
+          )}
 
           {xrSupported ? (
             <button className="xr-pill-btn" onClick={enterAR}>
@@ -166,7 +215,9 @@ export default function App() {
             <span className="lab-eyebrow">{currentCategory.unitTitle}</span>
             <div className="lab-stage-title">
               <h2>{formProps.currentMethodObj.label}</h2>
-              <span className="lab-tag">{plot ? "Vista 2D" : "Vista 3D"}</span>
+              <span className="lab-tag">{immersivePreview
+      ? "Entorno XYZ"
+      : plot ? "Vista 2D" : "Vista 3D"}</span>
             </div>
             <p>{displayedTitle}</p>
           </div>
@@ -175,6 +226,7 @@ export default function App() {
             <Canvas camera={{ position: [0, 1.5, 6.5], fov: 50 }}>
               <XR store={xrStore}>
                 <WorkspaceScene
+                  immersivePreview={immersivePreview}
                   category={categoryId}
                   result={result}
                   titleLabel={displayedTitle}
@@ -189,7 +241,7 @@ export default function App() {
               </XR>
             </Canvas>
 
-            {!result && (
+            {!result && !immersivePreview && (
               <div className="lab-canvas-hint">
                 Introduce los parámetros y calcula para comenzar.
               </div>
@@ -197,8 +249,13 @@ export default function App() {
           </div>
 
           <div className="lab-legend">
-            <span>{plot ? "Plano cartesiano frontal" : "Arrastra para rotar"}</span>
+            <span>{immersivePreview
+      ? "Arrastra para explorar XYZ"
+      : plot ? "Plano cartesiano frontal" : "Arrastra para rotar"}</span>
             <span>Rueda para acercar</span>
+            {immersivePreview && (
+              <span>Clic derecho para desplazar</span>
+            )}
           </div>
         </section>
 
