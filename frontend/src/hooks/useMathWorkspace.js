@@ -103,6 +103,9 @@ export function useMathWorkspace() {
       if (preset.x1 !== undefined) setX1(preset.x1)
       if (preset.a !== undefined) setA(preset.a)
       if (preset.b !== undefined) setB(preset.b)
+      if (preset.nIntervals !== undefined) {
+        setNIntervals(preset.nIntervals)
+      }
       setTol(preset.tol)
     }
     setLoading(true)
@@ -181,10 +184,11 @@ export function useMathWorkspace() {
     handleCategoryChange,
     loadMathExample: example => handleCalculate(null, {
       ...example,
-      categoryId: ['lagrange', 'neville'].includes(example.method)
-        ? 'interpolation'
-        : example.method === 'bisection'
-          ? 'closed_roots' : 'open_roots',
+      categoryId: example.categoryId ??
+        (['lagrange', 'neville'].includes(example.method)
+          ? 'interpolation'
+          : example.method === 'bisection'
+            ? 'closed_roots' : 'open_roots'),
       method: example.method ?? 'newton',
       tol: 0.0001,
     }),

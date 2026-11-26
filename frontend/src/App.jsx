@@ -29,7 +29,7 @@ function WorkspaceScene(props) {
   if (inAR) {
     return (
       <SpatialLab
-        plot={['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(props.result?.plot?.kind) ? props.result.plot : null}
+        plot={['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(props.result?.plot?.kind) ? props.result.plot : null}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -41,7 +41,7 @@ function WorkspaceScene(props) {
     )
   }
 
-  if (['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(props.result?.plot?.kind)) {
+  if (['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(props.result?.plot?.kind)) {
     return (
       <NewtonScene
         plot={props.result.plot}
@@ -68,7 +68,7 @@ export default function App() {
     formProps,
   } = useMathWorkspace()
 
-  const plot = ['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(result?.plot?.kind)
+  const plot = ['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(result?.plot?.kind)
     ? result.plot
     : null
 

@@ -8,6 +8,8 @@ export default function IterationControls({
   const total = plot.steps.length
   const current = plot.steps[step]
   const interpolation = ['lagrange', 'neville'].includes(plot.kind)
+  const integration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
+  const hasValue = interpolation || integration
 
   return (
     <section className="lab-panel iteration-panel">
@@ -15,12 +17,20 @@ export default function IterationControls({
         <div>
           <span className="lab-eyebrow">Procedimiento</span>
           <h3>
-            {interpolation ? current.label : 'Iteración'}
+            {hasValue ? current.label : 'Iteración'}
             {' · '}{step + 1} de {total}
           </h3>
         </div>
-        <strong>{(interpolation ? current.value : current.next_x).toFixed(8)}</strong>
+        <strong>{(hasValue ? current.value : current.next_x).toFixed(8)}</strong>
       </div>
+
+      {integration && (
+        <div style={{ fontSize: '0.8rem', color: '#a5b4c8' }}>
+          {`Intervalo [${Number(current.a.toPrecision(5))}, ${Number(current.b.toPrecision(5))}]`}
+          {' · Aporte: '}{current.contribution.toFixed(8)}
+          {' · Integral acumulada'}
+        </div>
+      )}
 
       {interpolation && (
         <div style={{ fontSize: '0.8rem', color: '#a5b4c8' }}>

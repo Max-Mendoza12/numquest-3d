@@ -1,4 +1,5 @@
 import numpy as np
+from core.integration_plot import build_integration_plot
 
 
 # ==========================================
@@ -135,6 +136,9 @@ def trapezoidal_rule(f, a: float, b: float, n: int = 10):
         "h": round(h, 8),
         "integral": round(float(integral), 10),
         "nodes": nodes,
+        "plot": build_integration_plot(
+            "trapezoid", f, xs, ys, integral
+        ),
     }
 
 
@@ -164,6 +168,9 @@ def simpson_1_3_rule(f, a: float, b: float, n: int = 10):
         "h": round(h, 8),
         "integral": round(float(integral), 10),
         "nodes": nodes,
+        "plot": build_integration_plot(
+            "simpson_1_3", f, xs, ys, integral
+        ),
     }
 
 
@@ -199,6 +206,9 @@ def simpson_3_8_rule(f, a: float, b: float, n: int = 9):
         "h": round(h, 8),
         "integral": round(float(integral), 10),
         "nodes": nodes,
+        "plot": build_integration_plot(
+            "simpson_3_8", f, xs, ys, integral
+        ),
     }
 
 

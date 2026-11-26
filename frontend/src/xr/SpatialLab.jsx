@@ -57,6 +57,38 @@ const INTERPOLATION_EXAMPLES = [
   },
 ]
 
+const INTEGRATION_METHODS = [
+  'trapezoid', 'simpson_1_3', 'simpson_3_8',
+]
+
+const INTEGRATION_EXAMPLES = [
+  {
+    label: 'Trapecio',
+    method: 'trapezoid',
+  },
+  {
+    label: 'Simpson 1/3',
+    method: 'simpson_1_3',
+  },
+  {
+    label: 'Simpson 3/8',
+    method: 'simpson_3_8',
+  },
+].map(example => ({
+  ...example,
+  categoryId: 'calculus',
+  expression: 'x^2',
+  a: 0,
+  b: 3,
+  nIntervals: 6,
+}))
+
+const FAMILIES = [
+  { id: 'roots', label: 'Raíces', examples: EXAMPLES },
+  { id: 'interpolation', label: 'Interpolación', examples: INTERPOLATION_EXAMPLES },
+  { id: 'integration', label: 'Integración', examples: INTEGRATION_EXAMPLES },
+]
+
 function Label({ children, position, color = '#e2e8f0', size = 0.032, width = 0.48 }) {
   return (
     <Text
@@ -91,18 +123,23 @@ export default function SpatialLab({
   const session = useXR(state => state.session)
   const [scale, setScale] = useState(1)
   const [family, setFamily] = useState(
-    ['lagrange', 'neville'].includes(plot?.kind)
-      ? 'interpolation' : 'roots'
+    INTEGRATION_METHODS.includes(plot?.kind)
+      ? 'integration'
+      : ['lagrange', 'neville'].includes(plot?.kind)
+        ? 'interpolation' : 'roots'
   )
 
-  const examples = family === 'interpolation'
-    ? INTERPOLATION_EXAMPLES : EXAMPLES
+  const familyIndex = FAMILIES.findIndex(item => item.id === family)
+  const familyConfig = FAMILIES[familyIndex]
+  const nextFamily = FAMILIES[(familyIndex + 1) % FAMILIES.length]
+  const examples = familyConfig.examples
 
   const total = plot?.steps?.length ?? 0
   const current = plot?.steps?.[step]
   const isBisection = plot?.kind === 'bisection'
   const isSecant = plot?.kind === 'secant'
   const isInterpolation = ['lagrange', 'neville'].includes(plot?.kind)
+  const isIntegration = INTEGRATION_METHODS.includes(plot?.kind)
 
   const formula = isBisection
     ? 'c = (a + b) / 2'
@@ -129,7 +166,7 @@ export default function SpatialLab({
         rotation={[0, 0.18, 0]}
         width={0.53}
         height={1.02}
-        title={family === 'interpolation' ? 'Interpolación' : 'Raíces'}
+        title={familyConfig.label}
       >
         {examples.map((example, index) => (
           <SpatialButton
@@ -148,13 +185,12 @@ export default function SpatialLab({
         ))}
 
         <SpatialButton
-          label={family === 'roots' ? 'Ver interpolación' : 'Ver raíces'}
+          label={`Ver ${nextFamily.label}`}
           position={[0, -0.20, 0.035]}
           width={0.45}
           color="#514080"
-          onClick={() => setFamily(value =>
-            value === 'roots' ? 'interpolation' : 'roots'
-          )}
+          disabled={loading}
+          onClick={() => setFamily(nextFamily.id)}
         />
 
         <SpatialButton
@@ -207,7 +243,61 @@ export default function SpatialLab({
         height={1.02}
         title="Proceso y resultado"
       >
-        {current && isInterpolation ? (
+        {current && isIntegration ? (
+          <>
+            <Label position={[0, 0.33, 0.04]} color="#94a3b8">
+              Integral aproximada
+            </Label>
+
+            <Label
+              position={[0, 0.24, 0.04]}
+              color="#34d399"
+              size={0.054}
+            >
+              {number(plot.integral)}
+            </Label>
+
+            <Label position={[0, 0.12, 0.04]} color="#a78bfa">
+              {`Bloque ${step + 1} de ${total}`}
+            </Label>
+
+            <Label position={[0, 0.015, 0.04]}>
+              {`[${number(current.a)}, ${number(current.b)}]`}
+            </Label>
+
+            <Label position={[0, -0.09, 0.04]}>
+              Aporte del bloque
+            </Label>
+
+            <Label
+              position={[0, -0.16, 0.04]}
+              color="#fbbf24"
+              size={0.043}
+            >
+              {number(current.contribution)}
+            </Label>
+
+            <Label position={[0, -0.26, 0.04]}>
+              Integral acumulada
+            </Label>
+
+            <Label
+              position={[0, -0.36, 0.04]}
+              color="#34d399"
+              size={0.043}
+            >
+              {number(current.value)}
+            </Label>
+
+            <Label
+              position={[0, -0.44, 0.04]}
+              color="#94a3b8"
+              size={0.024}
+            >
+              Suma de áreas con signo
+            </Label>
+          </>
+        ) : current && isInterpolation ? (
           <>
             <Label position={[0, 0.33, 0.04]} color="#94a3b8">
               {plot.extrapolation ? 'Valor extrapolado' : 'Valor interpolado'}

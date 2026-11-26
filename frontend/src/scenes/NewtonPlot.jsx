@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Line, Text, OrbitControls, OrthographicCamera } from '@react-three/drei'
 
+import IntegrationGeometry from './IntegrationGeometry.jsx'
+
 const COLORS = {
   curve: '#22d3ee',
   tangent: '#f59e0b',
@@ -79,13 +81,15 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
   const isBisection = plot.kind === 'bisection'
   const isSecant = plot.kind === 'secant'
   const isInterpolation = ['lagrange', 'neville'].includes(plot.kind)
+  const isIntegration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
+  const isRoot = !isInterpolation && !isIntegration
 
   const format = n => Number(n.toPrecision(4)).toString()
 
-  const point = isInterpolation
+  const point = !isRoot
     ? null : [X(active.x), Y(active.fx), 0.04]
 
-  const next = isInterpolation
+  const next = !isRoot
     ? null : [X(active.next_x), Y(0), 0.04]
 
   const finalStep = index === plot.steps.length - 1
@@ -94,7 +98,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
 
   let tangent = null
 
-  if (!isInterpolation && !isBisection && Number.isFinite(active.slope) && active.slope !== 0) {
+  if (isRoot && !isBisection && Number.isFinite(active.slope) && active.slope !== 0) {
     const tx1 = active.x + (ymin - active.fx) / active.slope
     const tx2 = active.x + (ymax - active.fx) / active.slope
 
@@ -182,7 +186,14 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         />
       ))}
 
-      {isInterpolation ? (
+      {isIntegration ? (
+        <IntegrationGeometry
+          plot={plot}
+          index={index}
+          X={X}
+          Y={Y}
+        />
+      ) : isInterpolation ? (
         <group>
           {plot.nodes.map(([x, y], i) => (
             <Point
@@ -325,7 +336,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         fontSize={0.15}
         color={COLORS.iteration}
       >
-        {isInterpolation
+        {isInterpolation || isIntegration
           ? `${active.label}: ${active.value.toFixed(8)}`
           : `Iteración ${index + 1}: x = ${active.next_x.toFixed(8)}`}
       </Text>

@@ -269,6 +269,9 @@ def solve_calculus(req: CalculusRequest):
         else:
             raise HTTPException(status_code=400, detail="Método de cálculo numérico no reconocido")
 
+        if res.get("plot") is not None:
+            res["plot"]["expression"] = req.expression
+
         res["latex"] = parsed["latex"]
         return res
     except Exception as e:
