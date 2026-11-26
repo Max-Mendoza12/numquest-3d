@@ -32,7 +32,7 @@ def analyze_float(number: float):
 
 
 # ==========================================
-# 1.2 MÉTODOS CERRADOS
+# 1.2 MÉTODOS CERRADOS (2)
 # ==========================================
 def bisection_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 100):
     fa, fb = float(f(a)), float(f(b))
@@ -101,7 +101,7 @@ def false_position_method(f, a: float, b: float, tol: float = 1e-6, max_iter: in
 
 
 # ==========================================
-# 1.3 MÉTODOS ABIERTOS
+# 1.3 MÉTODOS ABIERTOS (6)
 # ==========================================
 def fixed_point_method(g, x0: float, tol: float = 1e-6, max_iter: int = 100):
     iterations = []
@@ -158,6 +158,42 @@ def newton_raphson_method(f, df, x0: float, tol: float = 1e-6, max_iter: int = 1
     return {"converged": False, "error": "Máximo de iteraciones alcanzado", "iterations": iterations}
 
 
+def newton_multiple_roots_method(f, df, d2f, x0: float, tol: float = 1e-6, max_iter: int = 100):
+    """
+    Newton-Raphson modificado para raíces múltiples:
+    x_{i+1} = x_i - [f(x_i) * f'(x_i)] / [(f'(x_i))^2 - f(x_i) * f''(x_i)]
+    """
+    iterations = []
+    x = float(x0)
+    for i in range(1, max_iter + 1):
+        fx = float(f(x))
+        dfx = float(df(x))
+        d2fx = float(d2f(x))
+
+        denom = (dfx ** 2) - (fx * d2fx)
+        if abs(denom) < 1e-14:
+            return {"converged": False, "error": "Denominador cercano a cero en Newton modificado", "iterations": iterations}
+
+        x_next = x - (fx * dfx) / denom
+        err = abs((x_next - x) / x_next) * 100 if x_next != 0 else abs(x_next - x)
+
+        iterations.append({
+            "iter": i,
+            "x_prev": round(x, 8),
+            "root_approx": round(x_next, 8),
+            "fx": round(float(f(x_next)), 8),
+            "dfx": round(dfx, 8),
+            "d2fx": round(d2fx, 8),
+            "error_pct": round(err, 6),
+        })
+
+        if err < tol:
+            return {"converged": True, "root": x_next, "iterations": iterations}
+        x = x_next
+
+    return {"converged": False, "error": "Máximo de iteraciones alcanzado", "iterations": iterations}
+
+
 def secant_method(f, x0: float, x1: float, tol: float = 1e-6, max_iter: int = 100):
     iterations = []
     x0, x1 = float(x0), float(x1)
@@ -185,9 +221,55 @@ def secant_method(f, x0: float, x1: float, tol: float = 1e-6, max_iter: int = 10
     return {"converged": False, "error": "Máximo de iteraciones alcanzado", "iterations": iterations}
 
 
-# ==========================================
-# 1.4 RAÍCES DE POLINOMIOS (MÜLLER Y BAIRSTOW)
-# ==========================================
+def steffensen_method(f, x0: float, tol: float = 1e-6, max_iter: int = 100):
+    """
+    Método de Steffensen (aceleración cuadrática sin derivadas):
+    x_{i+1} = x_i - [f(x_i)]^2 / [f(x_i + f(x_i)) - f(x_i)]
+    """
+    iterations = []
+    x = float(x0)
+    for i in range(1, max_iter + 1):
+        fx = float(f(x))
+        if abs(fx) < 1e-14:
+            iterations.append({
+                "iter": i,
+                "x_prev": round(x, 8),
+                "root_approx": round(x, 8),
+                "fx": round(fx, 8),
+                "error_pct": 0.0,
+            })
+            return {"converged": True, "root": x, "iterations": iterations}
+
+        try:
+            fx_plus = float(f(x + fx))
+        except Exception:
+            return {"converged": False, "error": "Divergencia numérica al evaluar f(x + f(x))", "iterations": iterations}
+
+        denom = fx_plus - fx
+        if abs(denom) < 1e-14:
+            return {"converged": False, "error": "División por cero en Steffensen", "iterations": iterations}
+
+        x_next = x - (fx ** 2) / denom
+        if abs(x_next) > 1e12:
+            return {"converged": False, "error": "El método diverge hacia infinito", "iterations": iterations}
+
+        err = abs((x_next - x) / x_next) * 100 if x_next != 0 else abs(x_next - x)
+
+        iterations.append({
+            "iter": i,
+            "x_prev": round(x, 8),
+            "root_approx": round(x_next, 8),
+            "fx": round(float(f(x_next)), 8),
+            "error_pct": round(err, 6),
+        })
+
+        if err < tol:
+            return {"converged": True, "root": x_next, "iterations": iterations}
+        x = x_next
+
+    return {"converged": False, "error": "Máximo de iteraciones alcanzado", "iterations": iterations}
+
+
 def muller_method(f, x0: float, x1: float, x2: float, tol: float = 1e-6, max_iter: int = 100):
     iterations = []
     x0, x1, x2 = complex(x0), complex(x1), complex(x2)
@@ -233,11 +315,7 @@ def muller_method(f, x0: float, x1: float, x2: float, tol: float = 1e-6, max_ite
 
 
 def bairstow_method(coeffs: list, r: float = -1.0, s: float = -1.0, tol: float = 1e-6, max_iter: int = 100):
-    """
-    coeffs: lista de coeficientes de mayor a menor grado [a_n, a_{n-1}, ..., a_0]
-    Extrae un factor cuadrático x^2 - r*x - s y devuelve sus 2 raíces (reales o complejas).
-    """
-    a = list(reversed([float(c) for c in coeffs]))  # a[0] + a[1]x + ... + a[n]x^n
+    a = list(reversed([float(c) for c in coeffs]))
     n = len(a) - 1
     if n < 2:
         return {"converged": False, "error": "El polinomio debe ser al menos de grado 2", "iterations": []}
