@@ -40,6 +40,23 @@ const EXAMPLES = [
   },
 ]
 
+const INTERPOLATION_EXAMPLES = [
+  {
+    label: 'Lagrange',
+    method: 'lagrange',
+    xPtsStr: '0, 1, 2, 3',
+    yPtsStr: '0, 1, 4, 9',
+    xEval: 1.5,
+  },
+  {
+    label: 'Neville',
+    method: 'neville',
+    xPtsStr: '0, 1, 2, 3',
+    yPtsStr: '0, 1, 4, 9',
+    xEval: 1.5,
+  },
+]
+
 function Label({ children, position, color = '#e2e8f0', size = 0.032, width = 0.48 }) {
   return (
     <Text
@@ -73,11 +90,19 @@ export default function SpatialLab({
 }) {
   const session = useXR(state => state.session)
   const [scale, setScale] = useState(1)
+  const [family, setFamily] = useState(
+    ['lagrange', 'neville'].includes(plot?.kind)
+      ? 'interpolation' : 'roots'
+  )
+
+  const examples = family === 'interpolation'
+    ? INTERPOLATION_EXAMPLES : EXAMPLES
 
   const total = plot?.steps?.length ?? 0
   const current = plot?.steps?.[step]
   const isBisection = plot?.kind === 'bisection'
   const isSecant = plot?.kind === 'secant'
+  const isInterpolation = ['lagrange', 'neville'].includes(plot?.kind)
 
   const formula = isBisection
     ? 'c = (a + b) / 2'
@@ -104,9 +129,9 @@ export default function SpatialLab({
         rotation={[0, 0.18, 0]}
         width={0.53}
         height={1.02}
-        title="Métodos y ejemplos"
+        title={family === 'interpolation' ? 'Interpolación' : 'Raíces'}
       >
-        {EXAMPLES.map((example, index) => (
+        {examples.map((example, index) => (
           <SpatialButton
             key={example.label}
             label={example.label}
@@ -122,9 +147,15 @@ export default function SpatialLab({
           />
         ))}
 
-        <Label position={[0, -0.20, 0.035]} color="#94a3b8">
-          Apunta y selecciona con una pinza.
-        </Label>
+        <SpatialButton
+          label={family === 'roots' ? 'Ver interpolación' : 'Ver raíces'}
+          position={[0, -0.20, 0.035]}
+          width={0.45}
+          color="#514080"
+          onClick={() => setFamily(value =>
+            value === 'roots' ? 'interpolation' : 'roots'
+          )}
+        />
 
         <SpatialButton
           label="Reducir"
@@ -159,7 +190,7 @@ export default function SpatialLab({
         ) : (
           <>
             <Label position={[0, 0.30, 0.04]} size={0.06} width={1.3} color="#22d3ee">
-              Laboratorio de raíces
+              Laboratorio matemático
             </Label>
             <Label position={[0, 0.04, 0.04]} size={0.043} width={1.25}>
               {loading ? 'Calculando...' : 'Selecciona un ejemplo del panel izquierdo.'}
@@ -176,7 +207,51 @@ export default function SpatialLab({
         height={1.02}
         title="Proceso y resultado"
       >
-        {current ? (
+        {current && isInterpolation ? (
+          <>
+            <Label position={[0, 0.33, 0.04]} color="#94a3b8">
+              {plot.extrapolation ? 'Valor extrapolado' : 'Valor interpolado'}
+            </Label>
+
+            <Label
+              position={[0, 0.24, 0.04]}
+              color="#34d399"
+              size={0.054}
+            >
+              {number(plot.evaluation[1])}
+            </Label>
+
+            <Label position={[0, 0.12, 0.04]}>
+              {`Evaluado en x = ${number(plot.evaluation[0])}`}
+            </Label>
+
+            <Label position={[0, 0.015, 0.04]} color="#a78bfa">
+              {`${current.label} · ${step + 1}/${total}`}
+            </Label>
+
+            <Label position={[0, -0.09, 0.04]}>
+              {plot.kind === 'lagrange'
+                ? 'Suma acumulada'
+                : 'Última fila de Neville'}
+            </Label>
+
+            <Label position={[0, -0.17, 0.04]} color="#fbbf24" size={0.048}>
+              {number(current.value)}
+            </Label>
+
+            <Label position={[0, -0.28, 0.04]}>
+              {plot.kind === 'lagrange'
+                ? `Aporte: ${number(current.contribution)}`
+                : `Nodos: ${current.node_indices.length}`}
+            </Label>
+
+            <Label position={[0, -0.39, 0.04]} color="#a78bfa">
+              {plot.kind === 'lagrange'
+                ? 'P(x) = suma de y_i * L_i(x)'
+                : 'Interpolación por orden creciente'}
+            </Label>
+          </>
+        ) : current ? (
           <>
             <Label position={[0, 0.33, 0.04]} color="#94a3b8">
               {plot.converged ? 'Raíz calculada' : 'Última aproximación'}

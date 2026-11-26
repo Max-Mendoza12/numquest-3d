@@ -78,11 +78,15 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
   const active = plot.steps[index]
   const isBisection = plot.kind === 'bisection'
   const isSecant = plot.kind === 'secant'
+  const isInterpolation = ['lagrange', 'neville'].includes(plot.kind)
 
   const format = n => Number(n.toPrecision(4)).toString()
 
-  const point = [X(active.x), Y(active.fx), 0.04]
-  const next = [X(active.next_x), Y(0), 0.04]
+  const point = isInterpolation
+    ? null : [X(active.x), Y(active.fx), 0.04]
+
+  const next = isInterpolation
+    ? null : [X(active.next_x), Y(0), 0.04]
 
   const finalStep = index === plot.steps.length - 1
 
@@ -90,7 +94,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
 
   let tangent = null
 
-  if (!isBisection && Number.isFinite(active.slope) && active.slope !== 0) {
+  if (!isInterpolation && !isBisection && Number.isFinite(active.slope) && active.slope !== 0) {
     const tx1 = active.x + (ymin - active.fx) / active.slope
     const tx2 = active.x + (ymax - active.fx) / active.slope
 
@@ -178,6 +182,43 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         />
       ))}
 
+      {isInterpolation ? (
+        <group>
+          {plot.nodes.map(([x, y], i) => (
+            <Point
+              key={i}
+              position={[X(x), Y(y), 0.04]}
+              color={active.node_indices.includes(i)
+                ? COLORS.tangent : COLORS.iteration}
+              radius={active.node_indices.includes(i)
+                ? 0.09 : 0.065}
+            />
+          ))}
+
+          <Line
+            points={[
+              [X(plot.evaluation[0]), Y(0), 0.025],
+              [X(plot.evaluation[0]), Y(plot.evaluation[1]), 0.025],
+            ]}
+            color={COLORS.root}
+            dashed
+            dashSize={0.08}
+            gapSize={0.05}
+            lineWidth={2}
+          />
+
+          <Point
+            position={[
+              X(plot.evaluation[0]),
+              Y(plot.evaluation[1]),
+              0.08,
+            ]}
+            color={COLORS.root}
+            radius={0.10}
+          />
+        </group>
+      ) : (
+        <>
       {isBisection && (
         <group>
           <mesh position={[
@@ -267,13 +308,16 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         radius={0.08}
       />
 
+        </>
+      )}
+
       <Text
         position={[0, 2.08, 0]}
         fontSize={0.19}
         color={COLORS.curve}
         maxWidth={width}
       >
-        {`f(x) = ${plot.expression}`}
+        {plot.title ?? `f(x) = ${plot.expression}`}
       </Text>
 
       <Text
@@ -281,7 +325,9 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         fontSize={0.15}
         color={COLORS.iteration}
       >
-        {`Iteración ${index + 1}: x = ${active.next_x.toFixed(8)}`}
+        {isInterpolation
+          ? `${active.label}: ${active.value.toFixed(8)}`
+          : `Iteración ${index + 1}: x = ${active.next_x.toFixed(8)}`}
       </Text>
 
       <Text

@@ -65,6 +65,87 @@ def vandermonde_interpolation(x_pts: list, y_pts: list, x_eval: float):
 # ==========================================
 # 15. INTERPOLACIÓN DE LAGRANGE
 # ==========================================
+
+
+def _build_interpolation_plot(kind, evaluate, xs, ys,
+                              x_eval, y_eval, steps):
+    # Limitar el coste adicional de la visualizacion.
+    if len(xs) > 32 or not steps:
+        return None
+
+    nodes = [
+        [float(x), float(y)]
+        for x, y in zip(xs, ys)
+    ]
+
+    x_eval = float(x_eval)
+    y_eval = float(y_eval)
+
+    left = min(float(xs[0]), x_eval)
+    right = max(float(xs[-1]), x_eval)
+    span = right - left
+
+    if not np.isfinite(span) or span <= 0:
+        return None
+
+    samples = []
+
+    with np.errstate(all="ignore"):
+        for x in np.linspace(left, right, 241):
+            try:
+                y = float(evaluate(float(x)))
+            except (ArithmeticError, TypeError, ValueError):
+                return None
+
+            if not np.isfinite(y):
+                return None
+
+            samples.append([float(x), y])
+
+    values = [y for _, y in samples]
+    values.extend(float(y) for y in ys)
+    values.extend([y_eval, 0.0])
+
+    ymin, ymax = min(values), max(values)
+    padding = max(ymax - ymin, 0.1) * 0.08
+
+    domain = [
+        left - span * 0.05,
+        right + span * 0.05,
+    ]
+
+    yrange = [ymin - padding, ymax + padding]
+
+    if not np.all(np.isfinite(domain + yrange)):
+        return None
+
+    if domain[0] >= domain[1] or yrange[0] >= yrange[1]:
+        return None
+
+    for step in steps:
+        if not np.isfinite(step["value"]):
+            return None
+        if "contribution" in step:
+            if not np.isfinite(step["contribution"]):
+                return None
+
+    return {
+        "kind": kind,
+        "title": "Polinomio de Lagrange"
+            if kind == "lagrange"
+            else "Interpolación de Neville",
+        "domain": domain,
+        "range": yrange,
+        "samples": samples,
+        "nodes": nodes,
+        "evaluation": [x_eval, y_eval],
+        "extrapolation": bool(
+            x_eval < xs[0] or x_eval > xs[-1]
+        ),
+        "steps": steps,
+    }
+
+
 def lagrange_interpolation(x_pts: list, y_pts: list, x_eval: float):
     data, err = _validate_and_sort_points(x_pts, y_pts)
     if err:
@@ -83,6 +164,7 @@ def lagrange_interpolation(x_pts: list, y_pts: list, x_eval: float):
         return total
 
     basis_terms = []
+    plot_steps = []
     y_eval = 0.0
     for i in range(n):
         li = 1.0
@@ -91,6 +173,13 @@ def lagrange_interpolation(x_pts: list, y_pts: list, x_eval: float):
                 li *= (x_eval - xs[j]) / (xs[i] - xs[j])
         term_val = ys[i] * li
         y_eval += term_val
+
+        plot_steps.append({
+            "label": f"Término L_{i}",
+            "value": float(y_eval),
+            "contribution": float(term_val),
+            "node_indices": [i],
+        })
         basis_terms.append({
             "i": i,
             "x_i": round(float(xs[i]), 6),
@@ -104,6 +193,10 @@ def lagrange_interpolation(x_pts: list, y_pts: list, x_eval: float):
         "x_eval": x_eval,
         "y_eval": round(float(y_eval), 8),
         "basis_terms": basis_terms,
+        "plot": _build_interpolation_plot(
+            "lagrange", eval_lagrange, xs, ys,
+            x_eval, y_eval, plot_steps
+        ),
         "curve_points": _sample_curve(eval_lagrange, xs[0], xs[-1]),
     }
 
@@ -132,6 +225,16 @@ def neville_interpolation(x_pts: list, y_pts: list, x_eval: float):
         for i in range(j, n):
             Q[i, j] = ((x_eval - xs[i - j]) * Q[i, j - 1] - (x_eval - xs[i]) * Q[i - 1, j - 1]) / (xs[i] - xs[i - j])
 
+    plot_steps = [
+        {
+            "label": f"Orden {j}",
+            "value": float(Q[n - 1, j]),
+            "order": j,
+            "node_indices": list(range(n - 1 - j, n)),
+        }
+        for j in range(n)
+    ]
+
     table = []
     for i in range(n):
         row = [round(float(Q[i, j]), 8) if j <= i else None for j in range(n)]
@@ -142,6 +245,10 @@ def neville_interpolation(x_pts: list, y_pts: list, x_eval: float):
         "x_eval": x_eval,
         "y_eval": round(float(Q[n - 1, n - 1]), 8),
         "neville_table": table,
+        "plot": _build_interpolation_plot(
+            "neville", eval_neville, xs, ys,
+            x_eval, Q[n - 1, n - 1], plot_steps
+        ),
         "curve_points": _sample_curve(eval_neville, xs[0], xs[-1]),
     }
 

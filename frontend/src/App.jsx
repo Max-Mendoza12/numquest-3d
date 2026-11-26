@@ -29,7 +29,7 @@ function WorkspaceScene(props) {
   if (inAR) {
     return (
       <SpatialLab
-        plot={['newton', 'bisection', 'secant'].includes(props.result?.plot?.kind) ? props.result.plot : null}
+        plot={['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(props.result?.plot?.kind) ? props.result.plot : null}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -41,7 +41,7 @@ function WorkspaceScene(props) {
     )
   }
 
-  if (['newton', 'bisection', 'secant'].includes(props.result?.plot?.kind)) {
+  if (['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(props.result?.plot?.kind)) {
     return (
       <NewtonScene
         plot={props.result.plot}
@@ -64,18 +64,18 @@ export default function App() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
-    loadRootExample,
+    loadMathExample,
     formProps,
   } = useMathWorkspace()
 
-  const plot = ['newton', 'bisection', 'secant'].includes(result?.plot?.kind)
+  const plot = ['newton', 'bisection', 'secant', 'lagrange', 'neville'].includes(result?.plot?.kind)
     ? result.plot
     : null
 
   const { step, playing, seek, toggle } = useIterationPlayer(plot)
 
   const displayedTitle = plot
-    ? `f(x) = ${plot.expression}`
+    ? (plot.title ?? `f(x) = ${plot.expression}`)
     : sceneTitle
 
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function App() {
                   playing={playing}
                   onSeek={seek}
                   onToggle={toggle}
-                  onLoadExample={loadRootExample}
+                  onLoadExample={loadMathExample}
                   loading={formProps.loading}
                   errorMsg={errorMsg}
                 />

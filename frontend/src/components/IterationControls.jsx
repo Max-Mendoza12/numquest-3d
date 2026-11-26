@@ -7,16 +7,29 @@ export default function IterationControls({
 }) {
   const total = plot.steps.length
   const current = plot.steps[step]
+  const interpolation = ['lagrange', 'neville'].includes(plot.kind)
 
   return (
     <section className="lab-panel iteration-panel">
       <div className="iteration-heading">
         <div>
           <span className="lab-eyebrow">Procedimiento</span>
-          <h3>Iteración {step + 1} de {total}</h3>
+          <h3>
+            {interpolation ? current.label : 'Iteración'}
+            {' · '}{step + 1} de {total}
+          </h3>
         </div>
-        <strong>{current.next_x.toFixed(8)}</strong>
+        <strong>{(interpolation ? current.value : current.next_x).toFixed(8)}</strong>
       </div>
+
+      {interpolation && (
+        <div style={{ fontSize: '0.8rem', color: '#a5b4c8' }}>
+          {plot.kind === 'lagrange'
+            ? `Suma acumulada · Aporte: ${current.contribution.toFixed(8)}`
+            : 'Valor de la última fila para el orden seleccionado'}
+          {plot.extrapolation && ' · Extrapolación'}
+        </div>
+      )}
 
       <input
         aria-label="Seleccionar iteración"

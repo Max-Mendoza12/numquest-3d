@@ -92,7 +92,13 @@ export function useMathWorkspace() {
     if (preset) {
       setCategoryId(preset.categoryId)
       setMethod(preset.method)
-      setExpression(preset.expression)
+      if (preset.expression !== undefined) {
+        setExpression(preset.expression)
+      }
+
+      if (preset.xPtsStr !== undefined) setXPtsStr(preset.xPtsStr)
+      if (preset.yPtsStr !== undefined) setYPtsStr(preset.yPtsStr)
+      if (preset.xEval !== undefined) setXEval(preset.xEval)
       if (preset.x0 !== undefined) setX0(preset.x0)
       if (preset.x1 !== undefined) setX1(preset.x1)
       if (preset.a !== undefined) setA(preset.a)
@@ -173,10 +179,12 @@ export function useMathWorkspace() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
-    loadRootExample: example => handleCalculate(null, {
+    loadMathExample: example => handleCalculate(null, {
       ...example,
-      categoryId: example.method === 'bisection'
-        ? 'closed_roots' : 'open_roots',
+      categoryId: ['lagrange', 'neville'].includes(example.method)
+        ? 'interpolation'
+        : example.method === 'bisection'
+          ? 'closed_roots' : 'open_roots',
       method: example.method ?? 'newton',
       tol: 0.0001,
     }),
