@@ -8,6 +8,8 @@ import MathScene3D from './scenes/MathScene3D.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
 import { useMathWorkspace } from './hooks/useMathWorkspace.js'
 import MethodForm from './components/MethodForm.jsx'
+import NewtonScene from './scenes/NewtonPlot.jsx'
+import IterationControls from './components/IterationControls.jsx'
 import './App.css'
 
 const CATEGORY_LABELS = {
@@ -25,12 +27,25 @@ function WorkspaceScene(props) {
 
   if (inAR) return <SpatialProbe />
 
+  if (props.result?.plot?.kind === 'newton') {
+    return (
+      <NewtonScene
+        plot={props.result.plot}
+        step={props.step}
+      />
+    )
+  }
+
   return <MathScene3D {...props} />
 }
 
 export default function App() {
   const [xrSupported, setXrSupported] = useState(false)
   const [xrError, setXrError] = useState('')
+  const [playback, setPlayback] = useState({
+    result: null,
+    step: 0,
+  })
 
   const {
     categoryId,
@@ -41,6 +56,18 @@ export default function App() {
     handleCategoryChange,
     formProps,
   } = useMathWorkspace()
+
+  const plot = result?.plot?.kind === 'newton'
+    ? result.plot
+    : null
+
+  const step = playback.result === result
+    ? playback.step
+    : 0
+
+  const displayedTitle = plot
+    ? `f(x) = ${plot.expression}`
+    : sceneTitle
 
   useEffect(() => {
     if (navigator.xr) {
@@ -130,9 +157,9 @@ export default function App() {
             <span className="lab-eyebrow">{currentCategory.unitTitle}</span>
             <div className="lab-stage-title">
               <h2>{formProps.currentMethodObj.label}</h2>
-              <span className="lab-tag">Vista 3D</span>
+              <span className="lab-tag">{plot ? "Vista 2D" : "Vista 3D"}</span>
             </div>
-            <p>{sceneTitle}</p>
+            <p>{displayedTitle}</p>
           </div>
 
           <div className="lab-canvas">
@@ -141,7 +168,8 @@ export default function App() {
                 <WorkspaceScene
                   category={categoryId}
                   result={result}
-                  titleLabel={sceneTitle}
+                  titleLabel={displayedTitle}
+                  step={step}
                 />
               </XR>
             </Canvas>
@@ -154,11 +182,21 @@ export default function App() {
           </div>
 
           <div className="lab-legend">
-            <span>Arrastra para rotar</span>
+            <span>{plot ? "Plano cartesiano frontal" : "Arrastra para rotar"}</span>
             <span>Rueda para acercar</span>
           </div>
         </section>
 
+        {plot ? (
+          <IterationControls
+            plot={plot}
+            step={step}
+            onChange={value => setPlayback({
+              result,
+              step: value,
+            })}
+          />
+        ) : (
         <section className="lab-panel lab-process">
           <div>
             <span className="lab-eyebrow">Procedimiento</span>
@@ -170,6 +208,8 @@ export default function App() {
               result?.steps?.length ?? 0}
           </strong>
         </section>
+        )}
+
       </main>
 
       <aside className="lab-inspector lab-panel">

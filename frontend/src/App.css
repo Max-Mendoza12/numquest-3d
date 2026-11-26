@@ -800,3 +800,66 @@
       245px minmax(0, 1fr) 340px;
   }
 }
+
+
+/* NQ-008A - Controles de iteraciones */
+
+.iteration-panel {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-color: #a78bfa55;
+}
+
+.iteration-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.iteration-heading h3 {
+  font-size: 1rem;
+  margin: 5px 0;
+}
+
+.iteration-heading strong {
+  color: #a78bfa;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.iteration-panel input[type="range"] {
+  width: 100%;
+  accent-color: #a78bfa;
+  cursor: pointer;
+}
+
+.iteration-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.iteration-actions button {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #64748b66;
+  border-radius: 10px;
+  background: #20304a;
+  color: #f1f5f9;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.iteration-actions button:hover:not(:disabled) {
+  background: #155e75;
+  border-color: #22d3ee;
+}
+
+.iteration-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

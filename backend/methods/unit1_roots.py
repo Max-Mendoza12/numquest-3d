@@ -148,6 +148,12 @@ def newton_raphson_method(f, df, x0: float, tol: float = 1e-6, max_iter: int = 1
             "root_approx": round(x_next, 8),
             "fx": round(float(f(x_next)), 8),
             "dfx": round(dfx, 8),
+            "geometry": {
+                "x": x,
+                "fx": fx,
+                "slope": dfx,
+                "next_x": x_next,
+            },
             "error_pct": round(err, 6),
         })
 

@@ -81,6 +81,7 @@ export function useMathWorkspace() {
   const handleCalculate = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setResult(null)
     setErrorMsg('')
 
     try {

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from core.parser import build_function
+from core.newton_plot import build_newton_plot
 from methods.unit1_roots import (
     analyze_float,
     bisection_method,
@@ -172,6 +173,11 @@ def solve_root(req: RootRequest):
             res = muller_method(f, req.x0, req.x1, req.x2, req.tol, req.max_iter)
         else:
             raise HTTPException(status_code=400, detail="Método de raíces no reconocido")
+
+        if req.method == "newton":
+            res["plot"] = build_newton_plot(
+                f, res, req.expression
+            )
 
         res["latex"] = parsed["latex"]
         return res
