@@ -167,7 +167,23 @@ def newton_multiple_roots_method(f, df, d2f, x0: float, tol: float = 1e-6, max_i
     x = float(x0)
     for i in range(1, max_iter + 1):
         fx = float(f(x))
+
+        if fx == 0.0:
+            return {
+                "converged": True,
+                "root": x,
+                "iterations": iterations,
+            }
+
         dfx = float(df(x))
+
+        if dfx == 0.0:
+            return {
+                "converged": False,
+                "error": "Punto estacionario que no es una raiz",
+                "iterations": iterations,
+            }
+
         d2fx = float(d2f(x))
 
         denom = (dfx ** 2) - (fx * d2fx)
@@ -187,8 +203,26 @@ def newton_multiple_roots_method(f, df, d2f, x0: float, tol: float = 1e-6, max_i
             "error_pct": round(err, 6),
         })
 
+        if float(f(x_next)) == 0.0:
+            return {
+                "converged": True,
+                "root": x_next,
+                "iterations": iterations,
+            }
+
+        if x_next == x:
+            return {
+                "converged": False,
+                "error": "Estancamiento numerico sin encontrar una raiz exacta",
+                "iterations": iterations,
+            }
+
         if err < tol:
-            return {"converged": True, "root": x_next, "iterations": iterations}
+            return {
+                "converged": True,
+                "root": x_next,
+                "iterations": iterations,
+            }
         x = x_next
 
     return {"converged": False, "error": "Máximo de iteraciones alcanzado", "iterations": iterations}
@@ -319,6 +353,39 @@ def bairstow_method(coeffs: list, r: float = -1.0, s: float = -1.0, tol: float =
     n = len(a) - 1
     if n < 2:
         return {"converged": False, "error": "El polinomio debe ser al menos de grado 2", "iterations": []}
+
+    if a[n] == 0.0:
+        return {
+            "converged": False,
+            "error": "El coeficiente principal no puede ser cero",
+            "iterations": [],
+        }
+
+    if n == 2:
+        r = -a[1] / a[2]
+        s = -a[0] / a[2]
+
+        disc = cmath.sqrt(r**2 + 4 * s)
+        x1 = (r + disc) / 2.0
+        x2 = (r - disc) / 2.0
+
+        return {
+            "converged": True,
+            "quadratic_factor": (
+                f"x^2 - ({round(r, 6)})x - ({round(s, 6)})"
+            ),
+            "roots": [
+                {
+                    "real": round(x1.real, 8),
+                    "imag": round(x1.imag, 8),
+                },
+                {
+                    "real": round(x2.real, 8),
+                    "imag": round(x2.imag, 8),
+                },
+            ],
+            "iterations": [],
+        }
 
     iterations = []
     for it in range(1, max_iter + 1):
