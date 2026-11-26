@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { CATEGORIES } from '../config/categories.js'
 import { calculateMath } from '../services/mathApi.js'
 
@@ -50,6 +50,7 @@ export function useMathWorkspace() {
 
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const requestId = useRef(0)
   const [errorMsg, setErrorMsg] = useState('')
 
   const currentCategory = useMemo(
@@ -63,6 +64,8 @@ export function useMathWorkspace() {
   )
 
   const handleCategoryChange = (newCatId) => {
+    requestId.current += 1
+    setLoading(false)
     setCategoryId(newCatId)
     const cat = CATEGORIES.find((c) => c.id === newCatId)
     if (cat && cat.methods.length > 0) {
@@ -73,13 +76,26 @@ export function useMathWorkspace() {
   }
 
   const handleMethodChange = (newMethod) => {
+    requestId.current += 1
+    setLoading(false)
     setMethod(newMethod)
     setResult(null)
     setErrorMsg('')
   }
 
-  const handleCalculate = async (e) => {
-    e.preventDefault()
+  const handleCalculate = async (e, preset = null) => {
+    e?.preventDefault()
+    if (loading) return
+
+    const id = ++requestId.current
+
+    if (preset) {
+      setCategoryId(preset.categoryId)
+      setMethod(preset.method)
+      setExpression(preset.expression)
+      setX0(preset.x0)
+      setTol(preset.tol)
+    }
     setLoading(true)
     setResult(null)
     setErrorMsg('')
@@ -118,15 +134,23 @@ export function useMathWorkspace() {
         y0,
         tf,
         nSteps,
+        ...preset,
       })
+
+      if (id !== requestId.current) return
+
       if (data.converged === false || data.success === false) {
         setErrorMsg(data.error || 'No se pudo completar el cálculo')
       }
       setResult(data)
     } catch (err) {
-      setErrorMsg(err.message)
+      if (id === requestId.current) {
+        setErrorMsg(err.message)
+      }
     } finally {
-      setLoading(false)
+      if (id === requestId.current) {
+        setLoading(false)
+      }
     }
   }
 
@@ -146,6 +170,12 @@ export function useMathWorkspace() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
+    loadNewtonExample: example => handleCalculate(null, {
+      ...example,
+      categoryId: 'open_roots',
+      method: 'newton',
+      tol: 0.0001,
+    }),
     formProps: {
       categoryId,
       method,

@@ -2,6 +2,8 @@ export default function IterationControls({
   plot,
   step,
   onChange,
+  playing,
+  onToggle,
 }) {
   const total = plot.steps.length
   const current = plot.steps[step]
@@ -31,6 +33,10 @@ export default function IterationControls({
           onClick={() => onChange(step - 1)}
         >
           ‹ Anterior
+        </button>
+
+        <button disabled={total <= 1} onClick={onToggle}>
+          {playing ? 'Pausar' : 'Reproducir'}
         </button>
 
         <button onClick={() => onChange(0)}>

@@ -3,7 +3,8 @@ import { Canvas } from '@react-three/fiber'
 import { XR, useXR } from '@react-three/xr'
 import { CATEGORIES } from './config/categories.js'
 import { xrStore } from './xr/xrStore.js'
-import SpatialProbe from './xr/SpatialProbe.jsx'
+import SpatialLab from './xr/SpatialLab.jsx'
+import { useIterationPlayer } from './hooks/useIterationPlayer.js'
 import MathScene3D from './scenes/MathScene3D.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
 import { useMathWorkspace } from './hooks/useMathWorkspace.js'
@@ -25,7 +26,20 @@ const CATEGORY_LABELS = {
 function WorkspaceScene(props) {
   const inAR = useXR((state) => state.mode === 'immersive-ar')
 
-  if (inAR) return <SpatialProbe />
+  if (inAR) {
+    return (
+      <SpatialLab
+        plot={props.result?.plot?.kind === 'newton' ? props.result.plot : null}
+        step={props.step}
+        playing={props.playing}
+        onSeek={props.onSeek}
+        onToggle={props.onToggle}
+        onLoadExample={props.onLoadExample}
+        loading={props.loading}
+        errorMsg={props.errorMsg}
+      />
+    )
+  }
 
   if (props.result?.plot?.kind === 'newton') {
     return (
@@ -42,10 +56,6 @@ function WorkspaceScene(props) {
 export default function App() {
   const [xrSupported, setXrSupported] = useState(false)
   const [xrError, setXrError] = useState('')
-  const [playback, setPlayback] = useState({
-    result: null,
-    step: 0,
-  })
 
   const {
     categoryId,
@@ -54,6 +64,7 @@ export default function App() {
     errorMsg,
     sceneTitle,
     handleCategoryChange,
+    loadNewtonExample,
     formProps,
   } = useMathWorkspace()
 
@@ -61,9 +72,7 @@ export default function App() {
     ? result.plot
     : null
 
-  const step = playback.result === result
-    ? playback.step
-    : 0
+  const { step, playing, seek, toggle } = useIterationPlayer(plot)
 
   const displayedTitle = plot
     ? `f(x) = ${plot.expression}`
@@ -170,6 +179,12 @@ export default function App() {
                   result={result}
                   titleLabel={displayedTitle}
                   step={step}
+                  playing={playing}
+                  onSeek={seek}
+                  onToggle={toggle}
+                  onLoadExample={loadNewtonExample}
+                  loading={formProps.loading}
+                  errorMsg={errorMsg}
                 />
               </XR>
             </Canvas>
@@ -191,10 +206,9 @@ export default function App() {
           <IterationControls
             plot={plot}
             step={step}
-            onChange={value => setPlayback({
-              result,
-              step: value,
-            })}
+            onChange={seek}
+            playing={playing}
+            onToggle={toggle}
           />
         ) : (
         <section className="lab-panel lab-process">
