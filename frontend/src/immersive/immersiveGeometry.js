@@ -47,7 +47,9 @@ function buildCurveSegments(samples, X, Y, z) {
   return segments
 }
 
-export function buildImmersiveNewton(plot, page = 0) {
+export function buildImmersiveNewton(
+  plot, page = 0, activeIndex = null
+) {
   if (
     !SUPPORTED_IMMERSIVE_KINDS.includes(plot?.kind) ||
     !plot.steps?.length
@@ -68,11 +70,19 @@ export function buildImmersiveNewton(plot, page = 0) {
     )
   )
 
-  const pageStart = pageIndex * MAX_STATIONS
+  const single = activeIndex !== null
+
+  const pageStart = single
+    ? Math.max(0, Math.min(
+        plot.steps.length - 1,
+        Number.isFinite(activeIndex)
+          ? Math.floor(activeIndex) : 0
+      ))
+    : pageIndex * MAX_STATIONS
 
   const visibleSteps = plot.steps.slice(
     pageStart,
-    pageStart + MAX_STATIONS
+    pageStart + (single ? 1 : MAX_STATIONS)
   )
 
   const xExtent = Math.max(
@@ -224,8 +234,8 @@ export function buildImmersiveNewton(plot, page = 0) {
 
   return {
     stations,
-    pageIndex,
-    pageCount,
+    pageIndex: single ? 0 : pageIndex,
+    pageCount: single ? 1 : pageCount,
     pageStart,
     totalSteps: plot.steps.length,
     xmin,

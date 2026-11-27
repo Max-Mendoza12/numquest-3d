@@ -9,54 +9,105 @@ import {
 import {
   XROrigin,
   useXR,
-  useXRControllerLocomotion,
 } from '@react-three/xr'
-import { MathUtils } from 'three'
+import { MathUtils, Vector3 } from 'three'
+import { readThumbstick, snapTurn } from './locomotion.js'
 
 import { LinearWorld } from './LinearWorld.jsx'
 import ODEGeometry from '../scenes/ODEGeometry.jsx'
-import SpatialButton from '../xr/SpatialButton.jsx'
-import SpatialPanel from '../xr/SpatialPanel.jsx'
+import ImmersiveControls from './ImmersiveControls.jsx'
 import {
   buildImmersiveNewton,
   formatImmersiveSummary,
-  MAX_STATIONS,
-  STATION_DISTANCE,
 } from './immersiveGeometry.js'
 
-function UserNavigation({ depth, resetRevision }) {
+function UserNavigation({ resetRevision }) {
   const origin = useRef(null)
+  const turnLatch = useRef(false)
+
+  const vectors = useRef({
+    forward: new Vector3(),
+    right: new Vector3(),
+    pivot: new Vector3(),
+    offset: new Vector3(),
+    up: new Vector3(0, 1, 0),
+  })
 
   useEffect(() => {
     if (!origin.current) return
 
     origin.current.position.set(0, 0, 4)
     origin.current.rotation.set(0, 0, 0)
+    turnLatch.current = false
   }, [resetRevision])
 
-  useXRControllerLocomotion(
-    origin,
-    { speed: 0.9 },
-    { type: 'snap', degrees: 30, deadZone: 0.7 },
-    'left'
-  )
+  useFrame(({ gl }, delta) => {
+    const rig = origin.current
+    const session = gl.xr.getSession()
 
-  useFrame(() => {
-    if (!origin.current) return
+    if (!rig || !session) return
 
-    const p = origin.current.position
+    const view = gl.xr.getCamera()
+    const sources = session.inputSources
 
-    p.x = MathUtils.clamp(p.x, -6, 6)
-    p.z = MathUtils.clamp(p.z, -depth - 3, 5)
-    p.y = 0
+    const [moveX, moveY] = readThumbstick(
+      sources, 'left'
+    )
+
+    const [turnX] = readThumbstick(
+      sources, 'right'
+    )
+
+    const { forward, right, pivot, offset, up } = vectors.current
+
+    forward.set(0, 0, -1)
+      .transformDirection(view.matrixWorld)
+
+    forward.setY(0)
+
+    if (forward.lengthSq() > 1e-8) {
+      forward.normalize()
+
+      right.crossVectors(forward, up).normalize()
+
+      const distance = 0.9 * Math.min(delta, 0.05)
+
+      rig.position.addScaledVector(
+        forward, -moveY * distance
+      )
+
+      rig.position.addScaledVector(
+        right, moveX * distance
+      )
+    }
+
+    const turn = snapTurn(turnX, turnLatch.current)
+    turnLatch.current = turn.latched
+
+    if (turn.angle !== 0) {
+      pivot.setFromMatrixPosition(view.matrixWorld)
+      pivot.setY(0)
+
+      offset.copy(rig.position)
+        .sub(pivot)
+        .applyAxisAngle(up, turn.angle)
+
+      rig.position.copy(pivot).add(offset)
+      rig.rotation.y += turn.angle
+    }
+
+    rig.position.x = MathUtils.clamp(
+      rig.position.x, -8, 8
+    )
+
+    rig.position.z = MathUtils.clamp(
+      rig.position.z, -8, 8
+    )
+
+    rig.position.y = 0
   })
 
-  return (
-    <XROrigin
-      ref={origin}
-      position={[0, 0, 4]}
-    />
-  )
+  return <XROrigin ref={origin} />
 }
 
 function Label({
@@ -138,7 +189,7 @@ function CoordinateWorld({
       />
 
       <Line
-        points={[[0, Y(0), 1], [0, Y(0), -depth - 1]]}
+        points={[[0, Y(0), 3], [0, Y(0), -3]]}
         color="#60a5fa"
         lineWidth={3}
       />
@@ -158,10 +209,10 @@ function CoordinateWorld({
       </Label>
 
       <Label
-        position={[0, Y(0) + 0.25, -depth - 1]}
+        position={[0, Y(0) + 0.25, -3]}
         color="#60a5fa"
       >
-        Z · Pasos
+        Z · Profundidad
       </Label>
 
       {Array.from({ length: 7 }, (_, i) => {
@@ -188,51 +239,6 @@ function CoordinateWorld({
           </group>
         )
       })}
-
-      {stations.map(station => (
-        <group key={`z-${station.index}`}>
-          <Line
-            points={[
-              [-0.08, Y(0), station.z],
-              [0.08, Y(0), station.z],
-            ]}
-            color="#60a5fa"
-            lineWidth={2}
-          />
-
-          <Label
-            position={[-0.28, Y(0) - 0.16, station.z]}
-            size={0.10}
-            color="#93c5fd"
-          >
-            {String(station.index + 1)}
-          </Label>
-        </group>
-      ))}
-
-      {stations[0]?.isRoot && stations.length > 1 && (
-        <Line
-          points={stations.map(s => s.next)}
-          color="#a78bfa"
-          dashed
-          dashSize={0.15}
-          gapSize={0.09}
-          lineWidth={2}
-        />
-      )}
-
-      {plot.kind === 'ode' && stations.slice(1).map((station, i) => (
-        <Line
-          key={`ode-link-${i}`}
-          points={[stations[i].next, station.current]}
-          color="#64748b"
-          dashed
-          dashSize={0.12}
-          gapSize={0.08}
-          lineWidth={1.5}
-          raycast={() => null}
-        />
-      ))}
 
       {stations.map(station => {
         const active = station.index === step
@@ -402,6 +408,7 @@ function CoordinateWorld({
 export default function ImmersiveLab({
   plot,
   methodLabel,
+  formState,
   step,
   playing,
   onSeek,
@@ -414,27 +421,20 @@ export default function ImmersiveLab({
   const session = useXR(state => state.session)
   const [resetRevision, setResetRevision] = useState(0)
 
-  const page = Math.floor(step / MAX_STATIONS)
-
   const geometry = useMemo(
-    () => buildImmersiveNewton(plot, page),
-    [plot, page]
+    () => buildImmersiveNewton(plot, 0, step),
+    [plot, step]
   )
 
   const linear = plot?.kind === 'linear_system'
-  const depth = linear ? 3 : geometry?.depth ?? 4
+
   const total = linear
     ? plot.steps.length
     : geometry?.totalSteps ?? 0
+
   const current = linear
     ? plot.steps[step]
-    : geometry?.stations.find(
-        station => station.index === step
-      )
-
-  const navigationDepth = geometry?.pageCount > 1
-    ? (MAX_STATIONS - 1) * STATION_DISTANCE
-    : depth
+    : geometry?.stations[0]
 
   function recenter() {
     setResetRevision(value => value + 1)
@@ -446,7 +446,6 @@ export default function ImmersiveLab({
 
       {immersive ? (
         <UserNavigation
-          depth={navigationDepth}
           resetRevision={resetRevision}
         />
       ) : (
@@ -461,7 +460,7 @@ export default function ImmersiveLab({
             makeDefault
             target={linear
               ? [0, 2.8, 0]
-              : [0, 1.5, -depth / 2]}
+              : [0, 1.5, 0]}
             enableDamping
             dampingFactor={0.1}
             rotateSpeed={0.25}
@@ -486,134 +485,33 @@ export default function ImmersiveLab({
         />
       )}
 
-      <SpatialPanel
-        position={[-2.5, 1.5, 1.1]}
-        width={1.35}
-        height={1.45}
-        title="NumQuest Immersive"
-      >
-        {geometry?.pageCount > 1 && (
-          <Label
-            position={[0, 0.51, 0.04]}
-            size={0.032}
-            width={1.2}
-            color="#93c5fd"
-          >
-            {`Grupo ${geometry.pageIndex + 1}/${geometry.pageCount}`}
-          </Label>
-        )}
-
-        {plot ? (
-          <Label
-            position={[0, 0.35, 0.04]}
-            size={0.044}
-            color="#38bdf8"
-            width={1.2}
-          >
-            {`Método: ${methodLabel ?? plot.kind}`}
-          </Label>
-        ) : (
-          <SpatialButton
-            position={[0, 0.35, 0.035]}
-            label={loading ? 'Calculando...' : 'Cargar ejemplo'}
-            width={1.1}
-            height={0.12}
-            disabled={loading}
-            onClick={() => onLoadExample({
-              method: 'newton',
-              expression: 'x^3-2*x-5',
-              x0: 2,
-            })}
-          />
-        )}
-
-        <Label
-          position={[0, 0.16, 0.04]}
-          size={0.041}
-          width={1.2}
-        >
-          {linear
-            ? `Solución: (${plot.solution.map(
-                value => Number(value.toPrecision(5))
-              ).join(', ')})`
-            : formatImmersiveSummary(plot)}
-        </Label>
-
-        <Label
-          position={[0, 0.05, 0.04]}
-          size={0.038}
-          color="#a78bfa"
-          width={1.2}
-        >
-          {current
-            ? `${current.label} (${step + 1} de ${total})`
-            : 'Sin cálculo activo'}
-        </Label>
-
-        <SpatialButton
-          position={[-0.36, -0.10, 0.035]}
-          label="Anterior"
-          width={0.33}
-          disabled={!current || step === 0}
-          onClick={() => onSeek(step - 1)}
-        />
-
-        <SpatialButton
-          position={[0, -0.10, 0.035]}
-          label={playing ? 'Pausar' : 'Reproducir'}
-          width={0.33}
-          disabled={total <= 1}
-          onClick={onToggle}
-        />
-
-        <SpatialButton
-          position={[0.36, -0.10, 0.035]}
-          label="Siguiente"
-          width={0.33}
-          disabled={!current || step >= total - 1}
-          onClick={() => onSeek(step + 1)}
-        />
-
-        <Label
-          position={[0, -0.25, 0.04]}
-          size={0.032}
-          width={1.18}
-          color="#94a3b8"
-        >
-          {immersive
-            ? 'Joystick izquierdo: mover. Derecho: girar.'
-            : 'Arrastra para explorar el espacio XYZ.'}
-        </Label>
-
-        {errorMsg && (
-          <Label
-            position={[0, -0.36, 0.04]}
-            size={0.028}
-            color="#fb7185"
-            width={1.2}
-          >
-            {String(errorMsg).slice(0, 100)}
-          </Label>
-        )}
-
-        {immersive && (
-          <>
-            <SpatialButton
-              position={[0, -0.47, 0.035]}
-              label="Volver al inicio"
-              width={1.1}
-              onClick={recenter}
-            />
-
-            <SpatialButton
-              position={[0, -0.60, 0.035]}
-              label="Salir de VR"
-              width={1.1}
-              onClick={() => session?.end()}
-            />
-          </>
-        )}
-      </SpatialPanel>
+      <ImmersiveControls
+        formState={formState}
+        methodLabel={methodLabel}
+        summary={linear
+          ? `Solución: (${plot.solution.map(
+              value => Number(value.toPrecision(5))
+            ).join(', ')})`
+          : formatImmersiveSummary(plot)}
+        stepLabel={current
+          ? `${current.label} · ${step + 1}/${total}${
+              geometry?.pageCount > 1
+                ? ` · Grupo ${geometry.pageIndex + 1}/${geometry.pageCount}`
+                : ''
+            }`
+          : ''}
+        step={step}
+        total={total}
+        playing={playing}
+        loading={loading}
+        errorMsg={errorMsg}
+        onSeek={onSeek}
+        onToggle={onToggle}
+        onCalculate={onLoadExample}
+        onRecenter={recenter}
+        onExit={() => session?.end()}
+        immersive={immersive}
+      />
     </>
   )
 }

@@ -67,6 +67,11 @@ export function useMathWorkspace() {
     requestId.current += 1
     setLoading(false)
     setCategoryId(newCatId)
+
+    if (newCatId === 'calculus' && ![2, 3, 5].includes(Number(calcPoints))) {
+      setCalcPoints(3)
+    }
+
     const cat = CATEGORIES.find((c) => c.id === newCatId)
     if (cat && cat.methods.length > 0) {
       setMethod(cat.methods[0].id)
@@ -79,6 +84,11 @@ export function useMathWorkspace() {
     requestId.current += 1
     setLoading(false)
     setMethod(newMethod)
+
+    if (newMethod === 'diff' && ![2, 3, 5].includes(Number(calcPoints))) {
+      setCalcPoints(3)
+    }
+
     setResult(null)
     setErrorMsg('')
   }
@@ -111,6 +121,14 @@ export function useMathWorkspace() {
       if (preset.y0 !== undefined) setY0(preset.y0)
       if (preset.tf !== undefined) setTf(preset.tf)
       if (preset.nSteps !== undefined) setNSteps(preset.nSteps)
+
+      if (preset.matrixStr !== undefined) {
+        setMatrixStr(preset.matrixStr)
+      }
+
+      if (preset.vectorBStr !== undefined) {
+        setVectorBStr(preset.vectorBStr)
+      }
 
       setTol(preset.tol)
     }
@@ -196,7 +214,7 @@ export function useMathWorkspace() {
           : example.method === 'bisection'
             ? 'closed_roots' : 'open_roots'),
       method: example.method ?? 'newton',
-      tol: 0.0001,
+      tol: example.tol ?? 0.0001,
     }),
     formProps: {
       categoryId,

@@ -6,13 +6,14 @@ export default function SpatialPanel({
   width,
   height,
   title,
+  overlay = false,
   children,
 }) {
   return (
     <group position={position} rotation={rotation}>
       <mesh
         position={[0, 0, -0.035]}
-        renderOrder={-2}
+        renderOrder={overlay ? 1000 : -2}
         raycast={() => null}
       >
         <planeGeometry args={[width + 0.008, height + 0.008]} />
@@ -21,20 +22,22 @@ export default function SpatialPanel({
           transparent
           opacity={0.9}
           depthWrite={false}
+          depthTest={!overlay}
         />
       </mesh>
 
       <mesh
         position={[0, 0, -0.025]}
-        renderOrder={-1}
+        renderOrder={overlay ? 1001 : -1}
         raycast={() => null}
       >
         <planeGeometry args={[width, height]} />
         <meshBasicMaterial
           color="#101e33"
           transparent
-          opacity={0.94}
+          opacity={overlay ? 1 : 0.94}
           depthWrite={false}
+          depthTest={!overlay}
         />
       </mesh>
 
@@ -44,6 +47,9 @@ export default function SpatialPanel({
           fontSize={0.042}
           maxWidth={width - 0.04}
           color="#a5b4fc"
+          renderOrder={overlay ? 1003 : 0}
+          material-depthTest={!overlay}
+          material-depthWrite={false}
           raycast={() => null}
         >
           {title}

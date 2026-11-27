@@ -50,6 +50,7 @@ function WorkspaceScene(props) {
     return (
       <ImmersiveLab
         methodLabel={props.methodLabel}
+        formState={props.formState}
         plot={supportedPlot}
         step={props.step}
         playing={props.playing}
@@ -257,6 +258,7 @@ export default function App() {
                 <WorkspaceScene
                   immersivePreview={immersivePreview}
                   methodLabel={formProps.currentMethodObj.label}
+                  formState={formProps}
                   category={categoryId}
                   result={result}
                   titleLabel={displayedTitle}
