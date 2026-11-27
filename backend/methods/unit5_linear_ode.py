@@ -27,6 +27,17 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
     mode = pivoting.strip().lower()
     steps = []
 
+    # Datos geometricos independientes del resultado redondeado.
+    plot_steps = []
+
+    if n == 3:
+        plot_steps.append({
+            "label": "Sistema original",
+            "matrix": M.tolist(),
+            "pivot_row": None,
+            "swapped": False,
+        })
+
     # Factores de escala por fila (para pivoteo escalado)
     scale_factors = np.max(np.abs(A), axis=1)
     if mode == "scaled" and np.any(scale_factors == 0):
@@ -70,6 +81,14 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
             "augmented_matrix": [[round(float(val), 8) for val in row] for row in M],
         })
 
+        if n == 3:
+            plot_steps.append({
+                "label": f"Eliminación en columna {k + 1}",
+                "matrix": M.tolist(),
+                "pivot_row": pivot_row + 1,
+                "swapped": swapped,
+            })
+
     if abs(M[n - 1, n - 1]) < 1e-14:
         return {"success": False, "error": "Sistema singular o con infinitas soluciones", "steps": steps}
 
@@ -79,13 +98,35 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
         sum_ax = np.dot(M[i, i + 1:n], x[i + 1:n])
         x[i] = (M[i, n] - sum_ax) / M[i, i]
 
-    return {
+    result = {
         "success": True,
         "pivoting_mode": mode,
         "solution": [round(float(val), 8) for val in x],
         "upper_triangular_augmented": [[round(float(val), 8) for val in row] for row in M],
         "steps": steps,
     }
+
+    if n == 3 and np.all(np.isfinite(x)):
+        if all(
+            np.all(np.isfinite(item["matrix"]))
+            for item in plot_steps
+        ):
+            plot_steps.append({
+                "label": "Solución por sustitución",
+                "matrix": M.tolist(),
+                "pivot_row": None,
+                "swapped": False,
+            })
+
+            result["plot"] = {
+                "kind": "linear_system",
+                "title": "Sistema de ecuaciones XYZ",
+                "solution": x.tolist(),
+                "pivoting": mode,
+                "steps": plot_steps,
+            }
+
+    return result
 
 
 # ==========================================

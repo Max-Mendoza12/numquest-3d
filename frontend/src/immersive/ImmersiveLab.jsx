@@ -13,6 +13,7 @@ import {
 } from '@react-three/xr'
 import { MathUtils } from 'three'
 
+import { LinearWorld } from './LinearWorld.jsx'
 import SpatialButton from '../xr/SpatialButton.jsx'
 import SpatialPanel from '../xr/SpatialPanel.jsx'
 import {
@@ -395,11 +396,16 @@ export default function ImmersiveLab({
     [plot, page]
   )
 
-  const depth = geometry?.depth ?? 4
-  const total = geometry?.totalSteps ?? 0
-  const current = geometry?.stations.find(
-    station => station.index === step
-  )
+  const linear = plot?.kind === 'linear_system'
+  const depth = linear ? 3 : geometry?.depth ?? 4
+  const total = linear
+    ? plot.steps.length
+    : geometry?.totalSteps ?? 0
+  const current = linear
+    ? plot.steps[step]
+    : geometry?.stations.find(
+        station => station.index === step
+      )
 
   const navigationDepth = geometry?.pageCount > 1
     ? (MAX_STATIONS - 1) * STATION_DISTANCE
@@ -428,7 +434,9 @@ export default function ImmersiveLab({
 
           <OrbitControls
             makeDefault
-            target={[0, 1.5, -depth / 2]}
+            target={linear
+              ? [0, 2.8, 0]
+              : [0, 1.5, -depth / 2]}
             enableDamping
             dampingFactor={0.1}
             rotateSpeed={0.25}
@@ -438,6 +446,10 @@ export default function ImmersiveLab({
             maxDistance={40}
           />
         </>
+      )}
+
+      {linear && (
+        <LinearWorld plot={plot} step={step} />
       )}
 
       {geometry && (
@@ -495,7 +507,11 @@ export default function ImmersiveLab({
           size={0.041}
           width={1.2}
         >
-          {formatImmersiveSummary(plot)}
+          {linear
+            ? `Solución: (${plot.solution.map(
+                value => Number(value.toPrecision(5))
+              ).join(', ')})`
+            : formatImmersiveSummary(plot)}
         </Label>
 
         <Label

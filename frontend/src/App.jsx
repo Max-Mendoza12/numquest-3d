@@ -5,6 +5,7 @@ import { CATEGORIES } from './config/categories.js'
 import { xrStore } from './xr/xrStore.js'
 import SpatialLab from './xr/SpatialLab.jsx'
 import ImmersiveLab from './immersive/ImmersiveLab.jsx'
+import { LinearScene, LinearAR } from './immersive/LinearWorld.jsx'
 import { useIterationPlayer } from './hooks/useIterationPlayer.js'
 import MathScene3D from './scenes/MathScene3D.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
@@ -33,6 +34,7 @@ const SUPPORTED_PLOT_KINDS = [
   'trapezoid',
   'simpson_1_3',
   'simpson_3_8',
+  'linear_system',
 ]
 
 function WorkspaceScene(props) {
@@ -58,6 +60,14 @@ function WorkspaceScene(props) {
         immersive={inVR}
       />
     )
+  }
+
+  if (supportedPlot?.kind === 'linear_system') {
+    if (inAR) {
+      return <LinearAR {...props} plot={supportedPlot} />
+    }
+
+    return <LinearScene plot={supportedPlot} step={props.step} />
   }
 
   if (inAR) {
@@ -232,7 +242,9 @@ export default function App() {
               <span className="lab-tag">
                 {immersivePreview
                   ? 'Entorno XYZ'
-                  : plot ? 'Vista 2D' : 'Vista 3D'}
+                  : plot?.kind === 'linear_system'
+                    ? 'Vista XYZ'
+                    : plot ? 'Vista 2D' : 'Vista 3D'}
               </span>
             </div>
             <p>{displayedTitle}</p>
@@ -269,7 +281,9 @@ export default function App() {
             <span>
               {immersivePreview
                 ? 'Arrastra para explorar XYZ'
-                : plot ? 'Plano cartesiano frontal' : 'Arrastra para rotar'}
+                : plot?.kind === 'linear_system'
+                  ? 'Arrastra para explorar XYZ'
+                  : plot ? 'Plano cartesiano frontal' : 'Arrastra para rotar'}
             </span>
             <span>Rueda para acercar</span>
             {immersivePreview && (

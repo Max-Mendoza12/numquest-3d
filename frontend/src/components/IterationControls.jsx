@@ -9,6 +9,7 @@ export default function IterationControls({
   const current = plot.steps[step]
   const interpolation = ['lagrange', 'neville'].includes(plot.kind)
   const integration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
+  const linear = plot.kind === 'linear_system'
   const hasValue = interpolation || integration
 
   return (
@@ -17,12 +18,69 @@ export default function IterationControls({
         <div>
           <span className="lab-eyebrow">Procedimiento</span>
           <h3>
-            {hasValue ? current.label : 'Iteración'}
+            {hasValue || linear ? current.label : 'Iteración'}
             {' · '}{step + 1} de {total}
           </h3>
         </div>
-        <strong>{(hasValue ? current.value : current.next_x).toFixed(8)}</strong>
+        <strong>{linear
+          ? 'Matriz 3×4'
+          : (hasValue ? current.value : current.next_x).toFixed(8)
+        }</strong>
       </div>
+
+      {linear && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{
+            width: '100%',
+            fontSize: '0.85rem',
+            textAlign: 'right',
+            fontVariantNumeric: 'tabular-nums',
+            borderCollapse: 'collapse',
+          }}>
+            <thead>
+              <tr>
+                {['X', 'Y', 'Z', 'b'].map(name => (
+                  <th key={name} style={{ padding: '5px' }}>
+                    {name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {current.matrix.map((row, i) => (
+                <tr key={i}>
+                  {row.map((value, j) => (
+                    <td key={j} style={{
+                      padding: '5px',
+                      borderLeft: j === 3
+                        ? '1px solid #64748b' : undefined,
+                      color: j === 3 ? '#67e8f9' : undefined,
+                    }}>
+                      {Number(value.toPrecision(7))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {current.pivot_row !== null && (
+            <p style={{
+              fontSize: '0.8rem',
+              color: '#a5b4c8',
+            }}>
+              {`Fila pivote: ${current.pivot_row}`}
+              {current.swapped && ' · Intercambio de filas'}
+            </p>
+          )}
+
+          <p style={{ fontSize: '0.8rem', color: '#6ee7b7' }}>
+            {`Solución: (${plot.solution.map(
+              value => Number(value.toPrecision(7))
+            ).join(', ')})`}
+          </p>
+        </div>
+      )}
 
       {integration && (
         <div style={{ fontSize: '0.8rem', color: '#a5b4c8' }}>
