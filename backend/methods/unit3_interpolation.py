@@ -298,6 +298,12 @@ def divided_differences_interpolation(x_pts: list, y_pts: list, x_eval: float):
 # 18. INTERPOLACIÓN DE HERMITE
 # ==========================================
 def hermite_interpolation(x_pts: list, y_pts: list, dy_pts: list, x_eval: float):
+    if dy_pts is None:
+        return {
+            "success": False,
+            "error": "Hermite requiere una derivada por cada nodo",
+        }
+
     data, err = _validate_and_sort_points(x_pts, y_pts, dy_pts)
     if err:
         return {"success": False, "error": err}

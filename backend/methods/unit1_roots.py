@@ -1,4 +1,5 @@
 import struct
+import math
 import cmath
 import numpy as np
 
@@ -36,14 +37,44 @@ def analyze_float(number: float):
 # ==========================================
 def bisection_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 100):
     fa, fb = float(f(a)), float(f(b))
-    if fa * fb >= 0:
+
+    if not all(map(math.isfinite, [a, b, fa, fb])):
+        return {
+            "converged": False,
+            "error": "Intervalo o evaluaciones no finitas",
+            "iterations": [],
+        }
+
+    if fa == 0:
+        return {"converged": True, "root": a, "iterations": []}
+
+    if fb == 0:
+        return {"converged": True, "root": b, "iterations": []}
+
+    if (fa < 0) == (fb < 0):
         return {"converged": False, "error": "f(a) y f(b) deben tener signos opuestos", "iterations": []}
 
+
+    initial_scale = min(abs(fa), abs(fb))
     iterations = []
     c_old = a
     for i in range(1, max_iter + 1):
         c = (a + b) / 2.0
-        fc = float(f(c))
+        try:
+            fc = float(f(c))
+        except (ArithmeticError, ValueError, TypeError):
+            return {
+                "converged": False,
+                "error": "Funcion no definida dentro del intervalo",
+                "iterations": iterations,
+            }
+
+        if not math.isfinite(fc):
+            return {
+                "converged": False,
+                "error": "Evaluacion no finita",
+                "iterations": iterations,
+            }
         err = abs((c - c_old) / c) * 100 if (i > 1 and c != 0) else 100.0
 
         iterations.append({
@@ -64,10 +95,32 @@ def bisection_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 1
             "error_pct": round(err, 6),
         })
 
-        if abs(fc) < 1e-14 or (i > 1 and err < tol):
+        residual = abs(fc) / initial_scale
+
+        x_tolerance = (
+            tol / 100.0 * max(abs(c), 1.0)
+        )
+
+        interval_ok = (
+            abs(b - a) / 2.0 <= x_tolerance
+        )
+
+        residual_ok = residual <= tol / 100.0
+
+        if fc == 0 or (interval_ok and residual_ok):
             return {"converged": True, "root": c, "iterations": iterations}
 
-        if fa * fc < 0:
+        if c == a or c == b:
+            return {
+                "converged": False,
+                "error": (
+                    "Estancamiento sin residuo suficiente; "
+                    "posible discontinuidad"
+                ),
+                "iterations": iterations,
+            }
+
+        if (fa < 0) != (fc < 0):
             b, fb = c, fc
         else:
             a, fa = c, fc
@@ -78,14 +131,40 @@ def bisection_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 1
 
 def false_position_method(f, a: float, b: float, tol: float = 1e-6, max_iter: int = 100):
     fa, fb = float(f(a)), float(f(b))
-    if fa * fb >= 0:
+
+    if not all(map(math.isfinite, [a, b, fa, fb])):
+        return {
+            "converged": False,
+            "error": "Intervalo o evaluaciones no finitas",
+            "iterations": [],
+        }
+
+    if fa == 0:
+        return {"converged": True, "root": a, "iterations": []}
+
+    if fb == 0:
+        return {"converged": True, "root": b, "iterations": []}
+
+    if (fa < 0) == (fb < 0):
         return {"converged": False, "error": "f(a) y f(b) deben tener signos opuestos", "iterations": []}
+
+    initial_scale = max(abs(fa), abs(fb))
 
     iterations = []
     c_old = a
     for i in range(1, max_iter + 1):
-        c = b - (fb * (a - b)) / (fa - fb)
+        scale = max(abs(fa), abs(fb))
+        wa = abs(fa) / scale
+        wb = abs(fb) / scale
+        c = a + (b - a) * (wa / (wa + wb))
         fc = float(f(c))
+
+        if not math.isfinite(fc):
+            return {
+                "converged": False,
+                "error": "Evaluacion no finita",
+                "iterations": iterations,
+            }
         err = abs((c - c_old) / c) * 100 if (i > 1 and c != 0) else 100.0
 
         iterations.append({
@@ -97,10 +176,15 @@ def false_position_method(f, a: float, b: float, tol: float = 1e-6, max_iter: in
             "error_pct": round(err, 6),
         })
 
-        if abs(fc) < 1e-14 or (i > 1 and err < tol):
+        residual = abs(fc) / initial_scale
+
+        if fc == 0 or (
+            i > 1 and err < tol
+            and residual <= tol / 100.0
+        ):
             return {"converged": True, "root": c, "iterations": iterations}
 
-        if fa * fc < 0:
+        if (fa < 0) != (fc < 0):
             b, fb = c, fc
         else:
             a, fa = c, fc
@@ -144,8 +228,24 @@ def newton_raphson_method(f, df, x0: float, tol: float = 1e-6, max_iter: int = 1
     x = float(x0)
     for i in range(1, max_iter + 1):
         fx = float(f(x))
+
+        if fx == 0:
+            return {
+                "converged": True,
+                "root": x,
+                "iterations": iterations,
+            }
+
         dfx = float(df(x))
-        if abs(dfx) < 1e-14:
+
+        if not all(map(math.isfinite, [fx, dfx])):
+            return {
+                "converged": False,
+                "error": "Evaluacion no finita en Newton",
+                "iterations": iterations,
+            }
+
+        if dfx == 0:
             return {"converged": False, "error": "Derivada igual a cero (tangente horizontal)", "iterations": iterations}
 
         x_next = x - fx / dfx
@@ -201,11 +301,42 @@ def newton_multiple_roots_method(f, df, d2f, x0: float, tol: float = 1e-6, max_i
 
         d2fx = float(d2f(x))
 
-        denom = (dfx ** 2) - (fx * d2fx)
-        if abs(denom) < 1e-14:
-            return {"converged": False, "error": "Denominador cercano a cero en Newton modificado", "iterations": iterations}
+        if not all(map(math.isfinite, [fx, dfx, d2fx])):
+            return {
+                "converged": False,
+                "error": "Evaluaciones no finitas",
+                "iterations": iterations,
+            }
 
-        x_next = x - (fx * dfx) / denom
+        scale = max(abs(fx), abs(dfx), abs(d2fx))
+
+        fn = fx / scale
+        dn = dfx / scale
+        d2n = d2fx / scale
+
+        first = dn * dn
+        second = fn * d2n
+        denom = first - second
+
+        cancellation_limit = 8 * math.ulp(
+            max(abs(first), abs(second))
+        )
+
+        if abs(denom) <= cancellation_limit:
+            return {
+                "converged": False,
+                "error": "Denominador numericamente singular",
+                "iterations": iterations,
+            }
+
+        x_next = x - (fn * dn) / denom
+
+        if not math.isfinite(x_next):
+            return {
+                "converged": False,
+                "error": "Aproximacion no finita",
+                "iterations": iterations,
+            }
         err = abs((x_next - x) / x_next) * 100 if x_next != 0 else abs(x_next - x)
 
         iterations.append({
@@ -248,7 +379,29 @@ def secant_method(f, x0: float, x1: float, tol: float = 1e-6, max_iter: int = 10
     x0, x1 = float(x0), float(x1)
     for i in range(1, max_iter + 1):
         fx0, fx1 = float(f(x0)), float(f(x1))
-        if abs(fx1 - fx0) < 1e-14:
+
+        if not all(map(math.isfinite, [fx0, fx1])):
+            return {
+                "converged": False,
+                "error": "Evaluacion no finita en Secante",
+                "iterations": iterations,
+            }
+
+        if fx1 == 0:
+            return {
+                "converged": True,
+                "root": x1,
+                "iterations": iterations,
+            }
+
+        if fx0 == 0:
+            return {
+                "converged": True,
+                "root": x0,
+                "iterations": iterations,
+            }
+
+        if fx1 == fx0:
             return {"converged": False, "error": "División por cero: f(x1) - f(x0) = 0", "iterations": iterations}
 
         x2 = x1 - fx1 * (x1 - x0) / (fx1 - fx0)
@@ -285,9 +438,19 @@ def steffensen_method(f, x0: float, tol: float = 1e-6, max_iter: int = 100):
     """
     iterations = []
     x = float(x0)
+    scale = None
     for i in range(1, max_iter + 1):
-        fx = float(f(x))
-        if abs(fx) < 1e-14:
+        raw_fx = float(f(x))
+
+        if not math.isfinite(raw_fx):
+            return {
+                "converged": False,
+                "error": "Evaluacion no finita",
+                "iterations": iterations,
+            }
+
+        if raw_fx == 0:
+            fx = raw_fx
             iterations.append({
                 "iter": i,
                 "x_prev": round(x, 8),
@@ -297,16 +460,35 @@ def steffensen_method(f, x0: float, tol: float = 1e-6, max_iter: int = 100):
             })
             return {"converged": True, "root": x, "iterations": iterations}
 
+        if scale is None:
+            magnitude = abs(raw_fx)
+
+            scale = (
+                magnitude
+                if magnitude < 1e-8 or magnitude > 1e8
+                else 1.0
+            )
+
+        fx = raw_fx / scale
+
         try:
-            fx_plus = float(f(x + fx))
+            fx_plus = float(f(x + fx)) / scale
         except Exception:
             return {"converged": False, "error": "Divergencia numérica al evaluar f(x + f(x))", "iterations": iterations}
 
         denom = fx_plus - fx
-        if abs(denom) < 1e-14:
+
+        if not math.isfinite(denom) or denom == 0:
             return {"converged": False, "error": "División por cero en Steffensen", "iterations": iterations}
 
-        x_next = x - (fx ** 2) / denom
+        x_next = x - fx * (fx / denom)
+
+        if not math.isfinite(x_next):
+            return {
+                "converged": False,
+                "error": "Aproximacion no finita",
+                "iterations": iterations,
+            }
         if abs(x_next) > 1e12:
             return {"converged": False, "error": "El método diverge hacia infinito", "iterations": iterations}
 

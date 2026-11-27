@@ -260,18 +260,28 @@ def romberg_integration(f, a: float, b: float, max_levels: int = 5, tol: float =
 def adaptive_quadrature(f, a: float, b: float, tol: float = 1e-6, max_depth: int = 20):
     a, b = float(a), float(b)
     subintervals = []
+    exhausted = False
+    estimated_error = 0.0
 
     def simpson_single(x0, x1):
         xm = 0.5 * (x0 + x1)
         return ((x1 - x0) / 6.0) * (float(f(x0)) + 4.0 * float(f(xm)) + float(f(x1)))
 
     def recurse(x0, x1, eps, whole, depth):
+        nonlocal exhausted, estimated_error
+
         xm = 0.5 * (x0 + x1)
         left = simpson_single(x0, xm)
         right = simpson_single(xm, x1)
         delta = left + right - whole
 
         if depth <= 0 or abs(delta) <= 15.0 * eps:
+            local_error = abs(delta) / 15.0
+            estimated_error += local_error
+
+            if local_error > eps:
+                exhausted = True
+
             val = left + right + delta / 15.0
             subintervals.append({
                 "a": round(x0, 6),
@@ -289,7 +299,15 @@ def adaptive_quadrature(f, a: float, b: float, tol: float = 1e-6, max_depth: int
     total_integral = recurse(a, b, tol, initial_whole, max_depth)
 
     return {
-        "success": True,
+        "success": not exhausted,
+        "converged": not exhausted,
+        "estimated_error": estimated_error,
+        **({
+            "error": (
+                "Se alcanzo la profundidad maxima "
+                "sin satisfacer la tolerancia estimada"
+            )
+        } if exhausted else {}),
         "method": "Cuadratura adaptativa (Simpson)",
         "a": a,
         "b": b,

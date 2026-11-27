@@ -25,11 +25,30 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
     if A.ndim != 2 or A.shape[0] != A.shape[1]:
         return {"success": False, "error": "La matriz A debe ser cuadrada (n x n)"}
     n = A.shape[0]
-    if b.shape[0] != n:
+
+    if n == 0:
+        return {
+            "success": False,
+            "error": "La matriz no puede estar vacia",
+        }
+
+    if b.ndim != 1 or b.shape[0] != n:
         return {"success": False, "error": "El vector b debe tener dimensión n"}
+
+    if not np.all(np.isfinite(A)) or not np.all(np.isfinite(b)):
+        return {
+            "success": False,
+            "error": "El sistema contiene valores no finitos",
+        }
 
     M = np.hstack([A, b.reshape(-1, 1)])
     mode = pivoting.strip().lower()
+
+    if mode not in ("trivial", "partial", "scaled"):
+        return {
+            "success": False,
+            "error": "Modo de pivoteo invalido",
+        }
     steps = []
 
     # Datos geometricos independientes del resultado redondeado.
@@ -45,8 +64,21 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
 
     # Factores de escala por fila (para pivoteo escalado)
     scale_factors = np.max(np.abs(A), axis=1)
-    if mode == "scaled" and np.any(scale_factors == 0):
+    if np.any(scale_factors == 0):
         return {"success": False, "error": "Fila nula detectada; el sistema es singular"}
+
+    relative_threshold = (
+        np.finfo(float).eps * max(n, 1)
+    )
+
+    def invalid_pivot(row, column):
+        pivot = abs(M[row, column])
+        scale = scale_factors[row]
+
+        return (
+            not np.isfinite(pivot)
+            or pivot / scale <= relative_threshold
+        )
 
     for k in range(n - 1):
         pivot_row = k
@@ -67,7 +99,7 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
             scale_factors[[k, pivot_row]] = scale_factors[[pivot_row, k]]
             swapped = True
 
-        if abs(M[k, k]) < 1e-14:
+        if invalid_pivot(k, k):
             return {
                 "success": False,
                 "error": f"Pivote cero (o casi cero) en columna {k + 1}. Prueba pivoteo parcial o escalado.",
@@ -94,7 +126,7 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
                 "swapped": swapped,
             })
 
-    if abs(M[n - 1, n - 1]) < 1e-14:
+    if invalid_pivot(n - 1, n - 1):
         return {"success": False, "error": "Sistema singular o con infinitas soluciones", "steps": steps}
 
     # Sustitución hacia atrás
@@ -103,10 +135,17 @@ def gaussian_elimination(A_matrix: list, b_vector: list, pivoting: str = "partia
         sum_ax = np.dot(M[i, i + 1:n], x[i + 1:n])
         x[i] = (M[i, n] - sum_ax) / M[i, i]
 
+    if not np.all(np.isfinite(x)):
+        return {
+            "success": False,
+            "error": "Solucion numericamente no finita",
+            "steps": steps,
+        }
+
     result = {
         "success": True,
         "pivoting_mode": mode,
-        "solution": [round(float(val), 8) for val in x],
+        "solution": x.tolist(),
         "upper_triangular_augmented": [[round(float(val), 8) for val in row] for row in M],
         "steps": steps,
     }
