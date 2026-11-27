@@ -7,7 +7,7 @@ export const CATEGORIES = [
     methods: [
       { id: 'float_ieee', label: 'IEEE 754 (32/64 bits)', tag: 'Binario' },
       { id: 'bisection', label: 'Bisección', tag: 'Lineal' },
-      { id: 'false_position', label: 'Falsa Posición (Regula Falsi)', tag: 'Superlineal' },
+      { id: 'false_position', label: 'Falsa Posición (Regula Falsi)', tag: 'Lineal (generalmente)' },
     ],
   },
   {

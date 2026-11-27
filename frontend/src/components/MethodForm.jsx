@@ -1,11 +1,15 @@
+import { rootMultiplePreset, normalizeDiffFormula } from '../config/formRules.js'
+
 const MATH_KEYS = [
-  'x', '^2', '^3', '^',
+  '^2', '^3', '^',
   'sin(', 'cos(', 'exp(', 'sqrt(',
   '+', '-', '*', '/',
   '(', ')', ',', '⌫',
 ]
 
-function MathKeypad({ onInsert, onBackspace, onClear }) {
+function MathKeypad({
+  onInsert, onBackspace, onClear, variables = ['x'],
+}) {
   return (
     <div
       className="math-keypad"
@@ -21,7 +25,7 @@ function MathKeypad({ onInsert, onBackspace, onClear }) {
         border: '1px solid rgba(148, 163, 184, 0.25)',
       }}
     >
-      {MATH_KEYS.map((key) => (
+      {[...variables, ...MATH_KEYS].map((key) => (
         <button
           key={key}
           type="button"
@@ -203,8 +207,16 @@ export default function MethodForm({
                 <button type="button" className="preset-btn" onClick={() => { setExpression('x^3 - 2*x - 5'); setA(1); setB(3); setX0(2); setX1(2.5); setX2(3) }}>
                   Polinomio clásico
                 </button>
-                <button type="button" className="preset-btn" onClick={() => { setExpression('(x - 1)^2 * (x - 3)'); setA(0); setB(2); setX0(0.5); setX1(1.2); setX2(1.5) }}>
-                  Raíz múltiple
+                <button type="button" className="preset-btn" onClick={() => {
+                  const preset = rootMultiplePreset(categoryId)
+                  setExpression(preset.expression)
+                  setA(preset.a)
+                  setB(preset.b)
+                  setX0(preset.x0)
+                  setX1(preset.x1)
+                  setX2(preset.x2)
+                }}>
+                  {rootMultiplePreset(categoryId).label}
                 </button>
                 <button type="button" className="preset-btn" onClick={() => { setExpression('cos(x) - x'); setA(0); setB(1); setX0(0.5); setX1(0.8); setX2(1) }}>
                   Trascendente
@@ -471,6 +483,19 @@ export default function MethodForm({
                 Paso h:
                 <input className="glass-input" type="number" step="any" value={hStep} onChange={(e) => setHStep(e.target.value)} />
               </label>
+              {method === 'richardson' && (
+                <label className="field-label">
+                  Niveles:
+                  <input
+                    className="glass-input"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={levels}
+                    onChange={e => setLevels(e.target.value)}
+                  />
+                </label>
+              )}
               {method === 'diff' && (
                 <label className="field-label">
                   Puntos:
@@ -502,6 +527,17 @@ export default function MethodForm({
                     <option value={5}>n = 5</option>
                   </select>
                 </label>
+              ) : method === 'adaptive' ? (
+                <label className="field-label">
+                  Tolerancia absoluta:
+                  <input
+                    className="glass-input"
+                    type="number"
+                    step="any"
+                    value={tol}
+                    onChange={e => setTol(e.target.value)}
+                  />
+                </label>
               ) : method === 'romberg' ? (
                 <label className="field-label">
                   Niveles:
@@ -515,13 +551,38 @@ export default function MethodForm({
               )}
             </div>
           )}
+          {method === 'romberg' && (
+            <label className="field-label">
+              Tolerancia absoluta:
+              <input
+                className="glass-input"
+                type="number"
+                step="any"
+                value={tol}
+                onChange={e => setTol(e.target.value)}
+              />
+            </label>
+          )}
           {method === 'diff' && (
             <label className="field-label">
               Esquema de diferencia:
-              <select className="glass-select" value={diffFormula} onChange={(e) => setDiffFormula(e.target.value)}>
-                <option value="centered">Centrada</option>
-                <option value="forward_endpoint">Progresiva (Extremo)</option>
-                <option value="backward_endpoint">Regresiva (Extremo)</option>
+              <select
+                className="glass-select"
+                value={normalizeDiffFormula(Number(calcPoints), diffFormula)}
+                onChange={e => setDiffFormula(e.target.value)}
+              >
+                {Number(calcPoints) === 2 ? (
+                  <>
+                    <option value="forward">Progresiva</option>
+                    <option value="backward">Regresiva</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="centered">Centrada</option>
+                    <option value="forward_endpoint">Progresiva (Extremo)</option>
+                    <option value="backward_endpoint">Regresiva (Extremo)</option>
+                  </>
+                )}
               </select>
             </label>
           )}
@@ -595,7 +656,8 @@ export default function MethodForm({
           </div>
 
           <MathKeypad
-            onInsert={(tok) => setOdeExpr((prev) => `${prev ?? ''}${tok === 'x' ? 't' : tok}`)}
+            variables={['t', 'y']}
+            onInsert={(tok) => setOdeExpr((prev) => `${prev ?? ''}${tok}`)}
             onBackspace={() => setOdeExpr((prev) => String(prev ?? '').slice(0, -1))}
             onClear={() => setOdeExpr('')}
           />
