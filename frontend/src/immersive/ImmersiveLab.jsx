@@ -107,8 +107,6 @@ function CoordinateWorld({
 
   return (
     <group>
-
-      {/* Suelo de referencia, sin paredes ni recuadro. */}
       <gridHelper
         args={[
           floorSize,
@@ -119,7 +117,6 @@ function CoordinateWorld({
         position={[0, 0, -depth / 2]}
       />
 
-      {/* Ejes cartesianos globales. */}
       <Line
         points={[
           [X(Math.min(xmin, 0)), Y(0), 0],
@@ -159,10 +156,9 @@ function CoordinateWorld({
         position={[0, Y(0) + 0.25, -depth - 1]}
         color="#60a5fa"
       >
-        Z · Iteraciones
+        Z · Pasos
       </Label>
 
-      {/* Escala vertical Y. */}
       {Array.from({ length: 7 }, (_, i) => {
         const value = ymin + (ymax - ymin) * i / 6
 
@@ -188,7 +184,6 @@ function CoordinateWorld({
         )
       })}
 
-      {/* Escala de iteraciones sobre Z. */}
       {stations.map(station => (
         <group key={`z-${station.index}`}>
           <Line
@@ -210,7 +205,6 @@ function CoordinateWorld({
         </group>
       ))}
 
-      {/* Conectar aproximaciones de diferentes iteraciones. */}
       {stations.length > 1 && (
         <Line
           points={stations.map(s => s.next)}
@@ -224,16 +218,10 @@ function CoordinateWorld({
 
       {stations.map(station => {
         const active = station.index === step
-
-        const final = (
-          station.index === stations.length - 1 &&
-          plot.converged
-        )
+        const final = station.index === stations.length - 1 && plot.converged
 
         return (
           <group key={station.index}>
-
-            {/* Plano XY de cada iteración. */}
             <Line
               points={[
                 [X(xmin), Y(0), station.z],
@@ -243,7 +231,6 @@ function CoordinateWorld({
               lineWidth={1}
             />
 
-            {/* Escala horizontal. */}
             {Array.from({ length: 6 }, (_, i) => {
               const value = xmin + (xmax - xmin) * i / 5
 
@@ -259,9 +246,7 @@ function CoordinateWorld({
                   />
                   {active && (
                     <Label
-                      position={[
-                        X(value), Y(0) - 0.15, station.z
-                      ]}
+                      position={[X(value), Y(0) - 0.15, station.z]}
                       size={0.075}
                     >
                       {Number(value.toPrecision(3)).toString()}
@@ -271,7 +256,6 @@ function CoordinateWorld({
               )
             })}
 
-            {/* Curva matemática real. */}
             {station.segments.map((segment, i) => (
               <Line
                 key={i}
@@ -283,7 +267,6 @@ function CoordinateWorld({
               />
             ))}
 
-            {/* Tangente de Newton. */}
             {station.tangent && (
               <Line
                 points={station.tangent}
@@ -297,14 +280,20 @@ function CoordinateWorld({
               />
             )}
 
+            {station.areaPolygon && (
+              <Line
+                points={station.areaPolygon}
+                color="#34d399"
+                transparent
+                opacity={active ? 1 : 0.5}
+                lineWidth={active ? 2.5 : 1.5}
+              />
+            )}
+
             <Line
               points={[
                 station.current,
-                [
-                  station.current[0],
-                  Y(0),
-                  station.z,
-                ],
+                [station.current[0], Y(0), station.z],
               ]}
               color="#a78bfa"
               dashed
@@ -313,7 +302,6 @@ function CoordinateWorld({
               lineWidth={1.5}
             />
 
-            {/* Puntos seleccionables mediante pinza. */}
             <Marker
               position={station.current}
               color="#a78bfa"
@@ -333,7 +321,7 @@ function CoordinateWorld({
               size={active ? 0.19 : 0.13}
               color={active ? '#67e8f9' : '#94a3b8'}
             >
-              {`Iteración ${station.index + 1}`}
+              {station.label}
             </Label>
 
             {active && (
@@ -342,7 +330,7 @@ function CoordinateWorld({
                 size={0.12}
                 color="#fbbf24"
               >
-                {`x siguiente = ${station.data.next_x.toFixed(8)}`}
+                {`Valor = ${station.primaryValue.toFixed(8)}`}
               </Label>
             )}
           </group>
@@ -352,8 +340,25 @@ function CoordinateWorld({
   )
 }
 
+function formatImmersiveSummary(plot) {
+  if (!plot) return 'Calcula un método o carga ejemplo'
+  if (plot.root !== undefined && Number.isFinite(Number(plot.root))) {
+    return `${plot.converged ? 'Raíz' : 'Aprox'}: ${Number(plot.root).toFixed(8)}`
+  }
+  if (plot.y_eval !== undefined && Number.isFinite(Number(plot.y_eval))) {
+    return `P(${plot.x_eval}) = ${Number(plot.y_eval).toFixed(8)}`
+  }
+  if (plot.integral !== undefined && Number.isFinite(Number(plot.integral))) {
+    return `Integral ≈ ${Number(plot.integral).toFixed(8)}`
+  }
+  const last = plot.steps?.at(-1)
+  const val = last?.value ?? last?.next_x
+  return Number.isFinite(val) ? `Resultado: ${Number(val).toFixed(8)}` : 'Cálculo activo'
+}
+
 export default function ImmersiveLab({
   plot,
+  methodLabel,
   step,
   playing,
   onSeek,
@@ -425,38 +430,36 @@ export default function ImmersiveLab({
         height={1.45}
         title="NumQuest Immersive"
       >
-        <Label
-          position={[0, 0.51, 0.03]}
-          size={0.047}
-          width={1.2}
-          color="#22d3ee"
-        >
-          Entorno cartesiano XYZ
-        </Label>
-
-        <SpatialButton
-          position={[0, 0.35, 0.035]}
-          label={loading ? 'Calculando...' : 'Cargar Newton'}
-          width={1.1}
-          height={0.12}
-          disabled={loading}
-          onClick={() => onLoadExample({
-            method: 'newton',
-            expression: 'x^3-2*x-5',
-            x0: 2,
-          })}
-        />
+        {plot ? (
+          <Label
+            position={[0, 0.35, 0.04]}
+            size={0.044}
+            color="#38bdf8"
+            width={1.2}
+          >
+            {`Método: ${methodLabel ?? plot.kind}`}
+          </Label>
+        ) : (
+          <SpatialButton
+            position={[0, 0.35, 0.035]}
+            label={loading ? 'Calculando...' : 'Cargar ejemplo'}
+            width={1.1}
+            height={0.12}
+            disabled={loading}
+            onClick={() => onLoadExample({
+              method: 'newton',
+              expression: 'x^3-2*x-5',
+              x0: 2,
+            })}
+          />
+        )}
 
         <Label
           position={[0, 0.16, 0.04]}
           size={0.041}
           width={1.2}
         >
-          {current
-            ? `${plot.converged ? 'Raíz' : 'Aproximación'}: ${
-                Number(plot.root ?? plot.steps.at(-1).next_x).toFixed(8)
-              }`
-            : 'Selecciona Cargar Newton'}
+          {formatImmersiveSummary(plot)}
         </Label>
 
         <Label
@@ -466,8 +469,8 @@ export default function ImmersiveLab({
           width={1.2}
         >
           {current
-            ? `Iteración ${step + 1} de ${total}`
-            : 'Vista previa de navegación'}
+            ? `${current.label} (${step + 1} de ${total})`
+            : 'Sin cálculo activo'}
         </Label>
 
         <SpatialButton

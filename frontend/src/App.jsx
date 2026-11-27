@@ -24,16 +24,30 @@ const CATEGORY_LABELS = {
   ode: 'Ecuaciones diferenciales',
 }
 
+const SUPPORTED_PLOT_KINDS = [
+  'newton',
+  'bisection',
+  'secant',
+  'lagrange',
+  'neville',
+  'trapezoid',
+  'simpson_1_3',
+  'simpson_3_8',
+]
+
 function WorkspaceScene(props) {
   const mode = useXR(state => state.mode)
   const inAR = mode === 'immersive-ar'
   const inVR = mode === 'immersive-vr'
+  const supportedPlot = SUPPORTED_PLOT_KINDS.includes(props.result?.plot?.kind)
+    ? props.result.plot
+    : null
 
   if (inVR || (!inAR && props.immersivePreview)) {
     return (
       <ImmersiveLab
-        plot={props.result?.plot?.kind === 'newton'
-          ? props.result.plot : null}
+      methodLabel={props.methodLabel}
+        plot={supportedPlot}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -49,7 +63,7 @@ function WorkspaceScene(props) {
   if (inAR) {
     return (
       <SpatialLab
-        plot={['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(props.result?.plot?.kind) ? props.result.plot : null}
+        plot={supportedPlot}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -61,10 +75,10 @@ function WorkspaceScene(props) {
     )
   }
 
-  if (['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(props.result?.plot?.kind)) {
+  if (supportedPlot) {
     return (
       <NewtonScene
-        plot={props.result.plot}
+        plot={supportedPlot}
         step={props.step}
       />
     )
@@ -90,7 +104,7 @@ export default function App() {
     formProps,
   } = useMathWorkspace()
 
-  const plot = ['newton', 'bisection', 'secant', 'lagrange', 'neville', 'trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(result?.plot?.kind)
+  const plot = SUPPORTED_PLOT_KINDS.includes(result?.plot?.kind)
     ? result.plot
     : null
 
@@ -215,9 +229,11 @@ export default function App() {
             <span className="lab-eyebrow">{currentCategory.unitTitle}</span>
             <div className="lab-stage-title">
               <h2>{formProps.currentMethodObj.label}</h2>
-              <span className="lab-tag">{immersivePreview
-      ? "Entorno XYZ"
-      : plot ? "Vista 2D" : "Vista 3D"}</span>
+              <span className="lab-tag">
+                {immersivePreview
+                  ? 'Entorno XYZ'
+                  : plot ? 'Vista 2D' : 'Vista 3D'}
+              </span>
             </div>
             <p>{displayedTitle}</p>
           </div>
@@ -249,9 +265,11 @@ export default function App() {
           </div>
 
           <div className="lab-legend">
-            <span>{immersivePreview
-      ? "Arrastra para explorar XYZ"
-      : plot ? "Plano cartesiano frontal" : "Arrastra para rotar"}</span>
+            <span>
+              {immersivePreview
+                ? 'Arrastra para explorar XYZ'
+                : plot ? 'Plano cartesiano frontal' : 'Arrastra para rotar'}
+            </span>
             <span>Rueda para acercar</span>
             {immersivePreview && (
               <span>Clic derecho para desplazar</span>
@@ -268,19 +286,18 @@ export default function App() {
             onToggle={toggle}
           />
         ) : (
-        <section className="lab-panel lab-process">
-          <div>
-            <span className="lab-eyebrow">Procedimiento</span>
-            <h3>Iteraciones y pasos</h3>
-          </div>
-          <strong>
-            {result?.iterations?.length ??
-              result?.trajectory?.length ??
-              result?.steps?.length ?? 0}
-          </strong>
-        </section>
+          <section className="lab-panel lab-process">
+            <div>
+              <span className="lab-eyebrow">Procedimiento</span>
+              <h3>Iteraciones y pasos</h3>
+            </div>
+            <strong>
+              {result?.iterations?.length ??
+                result?.trajectory?.length ??
+                result?.steps?.length ?? 0}
+            </strong>
+          </section>
         )}
-
       </main>
 
       <aside className="lab-inspector lab-panel">
