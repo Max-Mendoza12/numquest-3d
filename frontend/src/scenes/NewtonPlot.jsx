@@ -3,6 +3,8 @@ import { useThree } from '@react-three/fiber'
 import { Line, Text, OrbitControls, OrthographicCamera } from '@react-three/drei'
 
 import IntegrationGeometry from './IntegrationGeometry.jsx'
+import ODEGeometry from './ODEGeometry.jsx'
+import { buildOdeFrame } from './odeGeometry.js'
 
 const COLORS = {
   curve: '#22d3ee',
@@ -82,7 +84,8 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
   const isSecant = plot.kind === 'secant'
   const isInterpolation = ['lagrange', 'neville'].includes(plot.kind)
   const isIntegration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
-  const isRoot = !isInterpolation && !isIntegration
+  const isODE = plot.kind === 'ode'
+  const isRoot = !isInterpolation && !isIntegration && !isODE
 
   const format = n => Number(n.toPrecision(4)).toString()
 
@@ -177,7 +180,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         />
       )}
 
-      {segments.map((segment, i) => (
+      {!isODE && segments.map((segment, i) => (
         <Line
           key={i}
           points={segment}
@@ -186,7 +189,11 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         />
       ))}
 
-      {isIntegration ? (
+      {isODE ? (
+        <ODEGeometry
+          frame={buildOdeFrame(plot, index, X, Y, 0.04)}
+        />
+      ) : isIntegration ? (
         <IntegrationGeometry
           plot={plot}
           index={index}
@@ -336,7 +343,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         fontSize={0.15}
         color={COLORS.iteration}
       >
-        {isInterpolation || isIntegration
+        {isInterpolation || isIntegration || isODE
           ? `${active.label}: ${active.value.toFixed(8)}`
           : `Iteración ${index + 1}: x = ${active.next_x.toFixed(8)}`}
       </Text>
@@ -346,7 +353,7 @@ export function NewtonPlot({ plot, step = 0, width = 5.4 }) {
         fontSize={0.14}
         color={COLORS.text}
       >
-        x
+        {isODE ? 't' : 'x'}
       </Text>
     </group>
   )

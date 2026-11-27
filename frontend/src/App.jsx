@@ -35,6 +35,7 @@ const SUPPORTED_PLOT_KINDS = [
   'simpson_1_3',
   'simpson_3_8',
   'linear_system',
+  'ode',
 ]
 
 function WorkspaceScene(props) {

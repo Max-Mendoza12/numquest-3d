@@ -1,6 +1,11 @@
 import numpy as np
 import sympy as sp
 from core.parser import parse_math_expression
+from core.ode_plot import (
+    MAX_PLOT_STEPS,
+    make_ode_step,
+    build_ode_plot,
+)
 
 
 # ==========================================
@@ -154,12 +159,21 @@ def euler_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 20)
 
     t, y = float(t0), float(y0)
     h = (float(tf) - t) / n_steps
+    plot_steps = []
     trajectory = [{"step": 0, "t": round(t, 8), "y": round(y, 8), "slope": round(float(f(t, y)), 8)}]
 
     for i in range(1, n_steps + 1):
+        start_t, start_y = t, y
         k1 = float(f(t, y))
         y = y + h * k1
         t = t0 + i * h
+        if n_steps <= MAX_PLOT_STEPS:
+            plot_steps.append(make_ode_step(
+                "euler", i,
+                start_t, start_y, t, y, h,
+                [k1], None,
+            ))
+
         trajectory.append({
             "step": i,
             "t": round(t, 8),
@@ -174,6 +188,9 @@ def euler_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 20)
         "final_t": round(t, 8),
         "final_y": round(y, 8),
         "trajectory": trajectory,
+        "plot": build_ode_plot(
+            "euler", expr_str, plot_steps
+        ),
     }
 
 
@@ -198,13 +215,22 @@ def taylor_order2_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: i
 
     t, y = float(t0), float(y0)
     h = (float(tf) - t) / n_steps
+    plot_steps = []
     trajectory = [{"step": 0, "t": round(t, 8), "y": round(y, 8)}]
 
     for i in range(1, n_steps + 1):
+        start_t, start_y = t, y
         f_val = float(f(t, y))
         df_val = float(df_num(t, y))
         y = y + h * f_val + 0.5 * (h ** 2) * df_val
         t = t0 + i * h
+        if n_steps <= MAX_PLOT_STEPS:
+            plot_steps.append(make_ode_step(
+                "taylor2", i,
+                start_t, start_y, t, y, h,
+                [f_val], df_val,
+            ))
+
         trajectory.append({
             "step": i,
             "t": round(t, 8),
@@ -221,6 +247,9 @@ def taylor_order2_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: i
         "final_t": round(t, 8),
         "final_y": round(y, 8),
         "trajectory": trajectory,
+        "plot": build_ode_plot(
+            "taylor2", expr_str, plot_steps
+        ),
     }
 
 
@@ -237,15 +266,24 @@ def modified_euler_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: 
 
     t, y = float(t0), float(y0)
     h = (float(tf) - t) / n_steps
+    plot_steps = []
     trajectory = [{"step": 0, "t": round(t, 8), "y": round(y, 8)}]
 
     for i in range(1, n_steps + 1):
+        start_t, start_y = t, y
         k1 = float(f(t, y))
         y_pred = y + h * k1
         t_next = t0 + i * h
         k2 = float(f(t_next, y_pred))
         y = y + 0.5 * h * (k1 + k2)
         t = t_next
+        if n_steps <= MAX_PLOT_STEPS:
+            plot_steps.append(make_ode_step(
+                "modified_euler", i,
+                start_t, start_y, t, y, h,
+                [k1, k2], None,
+            ))
+
         trajectory.append({
             "step": i,
             "t": round(t, 8),
@@ -261,6 +299,9 @@ def modified_euler_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: 
         "final_t": round(t, 8),
         "final_y": round(y, 8),
         "trajectory": trajectory,
+        "plot": build_ode_plot(
+            "modified_euler", expr_str, plot_steps
+        ),
     }
 
 
@@ -277,13 +318,22 @@ def midpoint_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 
 
     t, y = float(t0), float(y0)
     h = (float(tf) - t) / n_steps
+    plot_steps = []
     trajectory = [{"step": 0, "t": round(t, 8), "y": round(y, 8)}]
 
     for i in range(1, n_steps + 1):
+        start_t, start_y = t, y
         k1 = float(f(t, y))
         k2 = float(f(t + 0.5 * h, y + 0.5 * h * k1))
         y = y + h * k2
         t = t0 + i * h
+        if n_steps <= MAX_PLOT_STEPS:
+            plot_steps.append(make_ode_step(
+                "midpoint", i,
+                start_t, start_y, t, y, h,
+                [k1, k2], None,
+            ))
+
         trajectory.append({
             "step": i,
             "t": round(t, 8),
@@ -299,6 +349,9 @@ def midpoint_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 
         "final_t": round(t, 8),
         "final_y": round(y, 8),
         "trajectory": trajectory,
+        "plot": build_ode_plot(
+            "midpoint", expr_str, plot_steps
+        ),
     }
 
 
@@ -315,9 +368,11 @@ def rk4_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 20):
 
     t, y = float(t0), float(y0)
     h = (float(tf) - t) / n_steps
+    plot_steps = []
     trajectory = [{"step": 0, "t": round(t, 8), "y": round(y, 8)}]
 
     for i in range(1, n_steps + 1):
+        start_t, start_y = t, y
         k1 = float(f(t, y))
         k2 = float(f(t + 0.5 * h, y + 0.5 * h * k1))
         k3 = float(f(t + 0.5 * h, y + 0.5 * h * k2))
@@ -325,6 +380,13 @@ def rk4_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 20):
 
         y = y + (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         t = t0 + i * h
+
+        if n_steps <= MAX_PLOT_STEPS:
+            plot_steps.append(make_ode_step(
+                "rk4", i,
+                start_t, start_y, t, y, h,
+                [k1, k2, k3, k4], None,
+            ))
 
         trajectory.append({
             "step": i,
@@ -343,4 +405,7 @@ def rk4_ode(expr_str: str, t0: float, y0: float, tf: float, n_steps: int = 20):
         "final_t": round(t, 8),
         "final_y": round(y, 8),
         "trajectory": trajectory,
+        "plot": build_ode_plot(
+            "rk4", expr_str, plot_steps
+        ),
     }

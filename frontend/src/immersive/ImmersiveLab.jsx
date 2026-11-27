@@ -14,6 +14,7 @@ import {
 import { MathUtils } from 'three'
 
 import { LinearWorld } from './LinearWorld.jsx'
+import ODEGeometry from '../scenes/ODEGeometry.jsx'
 import SpatialButton from '../xr/SpatialButton.jsx'
 import SpatialPanel from '../xr/SpatialPanel.jsx'
 import {
@@ -146,7 +147,7 @@ function CoordinateWorld({
         position={[X(xmax) + 0.25, Y(0), 0]}
         color="#f87171"
       >
-        X
+        {plot.kind === 'ode' ? 't' : 'X'}
       </Label>
 
       <Label
@@ -220,6 +221,19 @@ function CoordinateWorld({
         />
       )}
 
+      {plot.kind === 'ode' && stations.slice(1).map((station, i) => (
+        <Line
+          key={`ode-link-${i}`}
+          points={[stations[i].next, station.current]}
+          color="#64748b"
+          dashed
+          dashSize={0.12}
+          gapSize={0.08}
+          lineWidth={1.5}
+          raycast={() => null}
+        />
+      ))}
+
       {stations.map(station => {
         const active = station.index === step
         const final = station.isRoot &&
@@ -261,6 +275,15 @@ function CoordinateWorld({
                 </group>
               )
             })}
+
+            {station.odeFrame && (
+              <ODEGeometry
+                frame={station.odeFrame}
+                active={active}
+                spatial
+                onSelect={() => onSeek(station.index)}
+              />
+            )}
 
             {station.segments.map((segment, i) => (
               <Line
@@ -333,15 +356,17 @@ function CoordinateWorld({
               />
             )}
 
-            <Marker
-              position={station.current}
-              color={station.isInterpolation
-                ? '#34d399' : '#a78bfa'}
-              active={active}
-              onSelect={() => onSeek(station.index)}
-            />
+            {!station.odeFrame && (
+              <Marker
+                position={station.current}
+                color={station.isInterpolation
+                  ? '#34d399' : '#a78bfa'}
+                active={active}
+                onSelect={() => onSeek(station.index)}
+              />
+            )}
 
-            {station.next && (
+            {!station.odeFrame && station.next && (
               <Marker
                 position={station.next}
                 color={final ? '#34d399' : '#fbbf24'}
@@ -364,7 +389,7 @@ function CoordinateWorld({
                 size={0.12}
                 color="#fbbf24"
               >
-                {`Valor = ${station.primaryValue.toFixed(8)}`}
+                {`${station.odeFrame ? 'y siguiente' : 'Valor'} = ${station.primaryValue.toFixed(8)}`}
               </Label>
             )}
           </group>

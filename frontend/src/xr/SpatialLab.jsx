@@ -83,10 +83,27 @@ const INTEGRATION_EXAMPLES = [
   nIntervals: 6,
 }))
 
+const ODE_EXAMPLES = [
+  { label: 'Euler', method: 'euler' },
+  { label: 'Taylor 2', method: 'taylor2' },
+  { label: 'Euler modificado', method: 'modified_euler' },
+  { label: 'Punto medio', method: 'midpoint' },
+  { label: 'Runge-Kutta 4', method: 'rk4' },
+].map(example => ({
+  ...example,
+  categoryId: 'ode',
+  odeExpr: 'y',
+  t0: 0,
+  y0: 1,
+  tf: 1,
+  nSteps: 5,
+}))
+
 const FAMILIES = [
   { id: 'roots', label: 'Raíces', examples: EXAMPLES },
   { id: 'interpolation', label: 'Interpolación', examples: INTERPOLATION_EXAMPLES },
   { id: 'integration', label: 'Integración', examples: INTEGRATION_EXAMPLES },
+  { id: 'ode', label: 'EDO', examples: ODE_EXAMPLES },
 ]
 
 function Label({ children, position, color = '#e2e8f0', size = 0.032, width = 0.48 }) {
@@ -123,7 +140,9 @@ export default function SpatialLab({
   const session = useXR(state => state.session)
   const [scale, setScale] = useState(1)
   const [family, setFamily] = useState(
-    INTEGRATION_METHODS.includes(plot?.kind)
+    plot?.kind === 'ode'
+      ? 'ode'
+      : INTEGRATION_METHODS.includes(plot?.kind)
       ? 'integration'
       : ['lagrange', 'neville'].includes(plot?.kind)
         ? 'interpolation' : 'roots'
@@ -140,6 +159,7 @@ export default function SpatialLab({
   const isSecant = plot?.kind === 'secant'
   const isInterpolation = ['lagrange', 'neville'].includes(plot?.kind)
   const isIntegration = INTEGRATION_METHODS.includes(plot?.kind)
+  const isODE = plot?.kind === 'ode'
 
   const formula = isBisection
     ? 'c = (a + b) / 2'
@@ -175,8 +195,11 @@ export default function SpatialLab({
             position={[0, 0.32 - index * 0.10, 0.035]}
             width={0.45}
             color={
-              plot?.kind === example.method &&
-              plot?.expression === example.expression
+              (isODE
+                ? plot.method === example.method &&
+                  plot.expression === example.odeExpr
+                : plot?.kind === example.method &&
+                  plot?.expression === example.expression)
                 ? '#155e75' : '#203b54'
             }
             disabled={loading}
@@ -243,7 +266,41 @@ export default function SpatialLab({
         height={1.02}
         title="Proceso y resultado"
       >
-        {current && isIntegration ? (
+        {current && isODE ? (
+          <>
+            <Label position={[0, 0.33, 0.04]} color="#94a3b8">
+              Solución numérica
+            </Label>
+
+            <Label position={[0, 0.24, 0.04]}
+              color="#34d399" size={0.05}>
+              {number(plot.final_y)}
+            </Label>
+
+            <Label position={[0, 0.13, 0.04]}>
+              {`Paso ${step + 1} de ${total}`}
+            </Label>
+
+            <Label position={[0, 0.04, 0.04]}>
+              {`t = ${number(current.end[0])}`}
+            </Label>
+
+            {current.stages.map((stage, i) => (
+              <Label
+                key={stage.label}
+                position={[0, -0.05 - i * 0.075, 0.04]}
+                color="#fbbf24"
+              >
+                {`${stage.label} = ${number(stage.slope)}`}
+              </Label>
+            ))}
+
+            <Label position={[0, -0.38, 0.04]}
+              color="#6ee7b7">
+              {`y siguiente = ${number(current.value)}`}
+            </Label>
+          </>
+        ) : current && isIntegration ? (
           <>
             <Label position={[0, 0.33, 0.04]} color="#94a3b8">
               Integral aproximada

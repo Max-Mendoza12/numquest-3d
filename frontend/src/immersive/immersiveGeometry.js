@@ -1,3 +1,5 @@
+import { buildOdeFrame } from '../scenes/odeGeometry.js'
+
 export const MAX_STATIONS = 24
 export const STATION_DISTANCE = 1.5
 
@@ -10,6 +12,7 @@ export const SUPPORTED_IMMERSIVE_KINDS = [
   'trapezoid',
   'simpson_1_3',
   'simpson_3_8',
+  'ode',
 ]
 
 const ROOT_KINDS = ['newton', 'bisection', 'secant']
@@ -87,6 +90,7 @@ export function buildImmersiveNewton(plot, page = 0) {
     -(index - pageStart) * STATION_DISTANCE
 
   const isRoot = ROOT_KINDS.includes(plot.kind)
+  const isODE = plot.kind === 'ode'
 
   const isInterpolation =
     INTERPOLATION_KINDS.includes(plot.kind)
@@ -97,9 +101,13 @@ export function buildImmersiveNewton(plot, page = 0) {
 
     const point = (x, y) => [X(x), Y(y), z]
 
-    const segments = buildCurveSegments(
+    const segments = isODE ? [] : buildCurveSegments(
       plot.samples, X, Y, z
     )
+
+    const odeFrame = isODE
+      ? buildOdeFrame(plot, index, X, Y, z, false)
+      : null
 
     let tangent = null
     let areaPolygon = null
@@ -109,7 +117,11 @@ export function buildImmersiveNewton(plot, page = 0) {
     const extraPoints = []
     const guides = []
 
-    if (isRoot) {
+    if (isODE) {
+      current = odeFrame.start
+      next = odeFrame.end
+      primaryValue = odeFrame.value
+    } else if (isRoot) {
       current = point(step.x, step.fx)
       next = point(step.next_x, 0)
       primaryValue = step.next_x
@@ -204,6 +216,7 @@ export function buildImmersiveNewton(plot, page = 0) {
       primaryValue,
       isRoot,
       isInterpolation,
+      odeFrame,
       label: step.label ?? `Iteración ${index + 1}`,
       data: step,
     }
@@ -245,6 +258,10 @@ export function formatImmersiveSummary(plot) {
     const [x, y] = plot.evaluation
 
     return `P(${x}) = ${y.toFixed(8)}`
+  }
+
+  if (plot.kind === 'ode') {
+    return `y(${Number(plot.final_t.toPrecision(6))}) ≈ ${plot.final_y.toFixed(8)}`
   }
 
   if (Number.isFinite(plot.integral)) {

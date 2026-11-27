@@ -106,6 +106,12 @@ export function useMathWorkspace() {
       if (preset.nIntervals !== undefined) {
         setNIntervals(preset.nIntervals)
       }
+      if (preset.odeExpr !== undefined) setOdeExpr(preset.odeExpr)
+      if (preset.t0 !== undefined) setT0(preset.t0)
+      if (preset.y0 !== undefined) setY0(preset.y0)
+      if (preset.tf !== undefined) setTf(preset.tf)
+      if (preset.nSteps !== undefined) setNSteps(preset.nSteps)
+
       setTol(preset.tol)
     }
     setLoading(true)

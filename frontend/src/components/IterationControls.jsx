@@ -10,7 +10,8 @@ export default function IterationControls({
   const interpolation = ['lagrange', 'neville'].includes(plot.kind)
   const integration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
   const linear = plot.kind === 'linear_system'
-  const hasValue = interpolation || integration
+  const ode = plot.kind === 'ode'
+  const hasValue = interpolation || integration || ode
 
   return (
     <section className="lab-panel iteration-panel">
@@ -79,6 +80,37 @@ export default function IterationControls({
               value => Number(value.toPrecision(7))
             ).join(', ')})`}
           </p>
+        </div>
+      )}
+
+      {ode && (
+        <div style={{
+          fontSize: '0.8rem',
+          color: '#a5b4c8',
+          lineHeight: 1.7,
+        }}>
+          <div>
+            {`t: ${Number(current.start[0].toPrecision(6))}`}
+            {' → '}
+            {Number(current.end[0].toPrecision(6))}
+            {' · h = '}{Number(current.h.toPrecision(6))}
+          </div>
+
+          <div>
+            {current.stages.map(stage =>
+              `${stage.label} = ${Number(stage.slope.toPrecision(7))}`
+            ).join(' · ')}
+          </div>
+
+          {current.derivative !== undefined && (
+            <div>
+              {`Derivada total: ${Number(current.derivative.toPrecision(7))}`}
+            </div>
+          )}
+
+          <div style={{ color: '#6ee7b7' }}>
+            {`y final ≈ ${plot.final_y.toFixed(8)}`}
+          </div>
         </div>
       )}
 
