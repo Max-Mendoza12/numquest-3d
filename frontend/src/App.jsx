@@ -46,7 +46,7 @@ function WorkspaceScene(props) {
   if (inVR || (!inAR && props.immersivePreview)) {
     return (
       <ImmersiveLab
-      methodLabel={props.methodLabel}
+        methodLabel={props.methodLabel}
         plot={supportedPlot}
         step={props.step}
         playing={props.playing}
@@ -243,6 +243,7 @@ export default function App() {
               <XR store={xrStore}>
                 <WorkspaceScene
                   immersivePreview={immersivePreview}
+                  methodLabel={formProps.currentMethodObj.label}
                   category={categoryId}
                   result={result}
                   titleLabel={displayedTitle}

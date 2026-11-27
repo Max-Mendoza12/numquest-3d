@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 const MATH_KEYS = [
   'x', '^2', '^3', '^',
   'sin(', 'cos(', 'exp(', 'sqrt(',
@@ -127,45 +125,6 @@ export default function MethodForm({
   nSteps,
   setNSteps,
 }) {
-  // Rastrea qué campo de texto tocó por última vez el usuario para el Keypad XR
-  const [activeTarget, setActiveTarget] = useState('expression')
-
-  const getTargetHandler = () => {
-    switch (activeTarget) {
-      case 'odeExpr':
-        return [odeExpr, setOdeExpr]
-      case 'xPtsStr':
-        return [xPtsStr, setXPtsStr]
-      case 'yPtsStr':
-        return [yPtsStr, setYPtsStr]
-      case 'dyPtsStr':
-        return [dyPtsStr, setDyPtsStr]
-      case 'coeffsStr':
-        return [coeffsStr, setCoeffsStr]
-      case 'vectorBStr':
-        return [vectorBStr, setVectorBStr]
-      case 'expression':
-      default:
-        return [expression, setExpression]
-    }
-  }
-
-  const handleKeyInsert = (token) => {
-    const [val, setter] = getTargetHandler()
-    setter(`${val ?? ''}${token}`)
-  }
-
-  const handleKeyBackspace = () => {
-    const [val, setter] = getTargetHandler()
-    const current = String(val ?? '')
-    setter(current.slice(0, -1))
-  }
-
-  const handleKeyClear = () => {
-    const [, setter] = getTargetHandler()
-    setter('')
-  }
-
   return (
     <form onSubmit={handleCalculate} className="glass-section">
       <label className="field-label">
@@ -222,7 +181,6 @@ export default function MethodForm({
               className="glass-input"
               type="text"
               value={expression}
-              onFocus={() => setActiveTarget('expression')}
               onChange={(e) => setExpression(e.target.value)}
             />
           </label>
@@ -313,7 +271,6 @@ export default function MethodForm({
                   className="glass-input"
                   type="text"
                   value={expression}
-                  onFocus={() => setActiveTarget('expression')}
                   onChange={(e) => setExpression(e.target.value)}
                 />
               </label>
@@ -339,7 +296,6 @@ export default function MethodForm({
                   className="glass-input"
                   type="text"
                   value={coeffsStr}
-                  onFocus={() => setActiveTarget('coeffsStr')}
                   onChange={(e) => setCoeffsStr(e.target.value)}
                 />
               </label>
@@ -421,7 +377,6 @@ export default function MethodForm({
               className="glass-input"
               type="text"
               value={xPtsStr}
-              onFocus={() => setActiveTarget('xPtsStr')}
               onChange={(e) => setXPtsStr(e.target.value)}
             />
           </label>
@@ -431,7 +386,6 @@ export default function MethodForm({
               className="glass-input"
               type="text"
               value={yPtsStr}
-              onFocus={() => setActiveTarget('yPtsStr')}
               onChange={(e) => setYPtsStr(e.target.value)}
             />
           </label>
@@ -442,7 +396,6 @@ export default function MethodForm({
                 className="glass-input"
                 type="text"
                 value={dyPtsStr}
-                onFocus={() => setActiveTarget('dyPtsStr')}
                 onChange={(e) => setDyPtsStr(e.target.value)}
               />
             </label>
@@ -486,7 +439,6 @@ export default function MethodForm({
               className="glass-input"
               type="text"
               value={expression}
-              onFocus={() => setActiveTarget('expression')}
               onChange={(e) => setExpression(e.target.value)}
             />
           </label>
@@ -626,7 +578,6 @@ export default function MethodForm({
               className="glass-input"
               type="text"
               value={odeExpr}
-              onFocus={() => setActiveTarget('odeExpr')}
               onChange={(e) => setOdeExpr(e.target.value)}
             />
           </label>

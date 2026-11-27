@@ -17,6 +17,9 @@ import SpatialButton from '../xr/SpatialButton.jsx'
 import SpatialPanel from '../xr/SpatialPanel.jsx'
 import {
   buildImmersiveNewton,
+  formatImmersiveSummary,
+  MAX_STATIONS,
+  STATION_DISTANCE,
 } from './immersiveGeometry.js'
 
 function UserNavigation({ depth, resetRevision }) {
@@ -205,7 +208,7 @@ function CoordinateWorld({
         </group>
       ))}
 
-      {stations.length > 1 && (
+      {stations[0]?.isRoot && stations.length > 1 && (
         <Line
           points={stations.map(s => s.next)}
           color="#a78bfa"
@@ -218,7 +221,9 @@ function CoordinateWorld({
 
       {stations.map(station => {
         const active = station.index === step
-        const final = station.index === stations.length - 1 && plot.converged
+        const final = station.isRoot &&
+          station.index === plot.steps.length - 1 &&
+          plot.converged
 
         return (
           <group key={station.index}>
@@ -283,38 +288,66 @@ function CoordinateWorld({
             {station.areaPolygon && (
               <Line
                 points={station.areaPolygon}
-                color="#34d399"
+                color={station.data.contribution < 0
+                  ? '#fb7185' : '#fbbf24'}
                 transparent
                 opacity={active ? 1 : 0.5}
                 lineWidth={active ? 2.5 : 1.5}
               />
             )}
 
-            <Line
-              points={[
-                station.current,
-                [station.current[0], Y(0), station.z],
-              ]}
-              color="#a78bfa"
-              dashed
-              dashSize={0.1}
-              gapSize={0.07}
-              lineWidth={1.5}
-            />
+            {station.guides.map((points, i) => (
+              <Line
+                key={`guide-${i}`}
+                points={points}
+                color="#a78bfa"
+                dashed
+                dashSize={0.10}
+                gapSize={0.06}
+                lineWidth={1.5}
+              />
+            ))}
+
+            {station.extraPoints.map((position, i) => (
+              <Marker
+                key={`extra-${i}`}
+                position={position}
+                color="#a78bfa"
+                active={active}
+                onSelect={() => onSeek(station.index)}
+              />
+            ))}
+
+            {(station.isRoot || station.isInterpolation) && (
+              <Line
+                points={[
+                  station.current,
+                  [station.current[0], Y(0), station.z],
+                ]}
+                color="#a78bfa"
+                dashed
+                dashSize={0.1}
+                gapSize={0.07}
+                lineWidth={1.5}
+              />
+            )}
 
             <Marker
               position={station.current}
-              color="#a78bfa"
+              color={station.isInterpolation
+                ? '#34d399' : '#a78bfa'}
               active={active}
               onSelect={() => onSeek(station.index)}
             />
 
-            <Marker
-              position={station.next}
-              color={final ? '#34d399' : '#fbbf24'}
-              active={active}
-              onSelect={() => onSeek(station.index)}
-            />
+            {station.next && (
+              <Marker
+                position={station.next}
+                color={final ? '#34d399' : '#fbbf24'}
+                active={active}
+                onSelect={() => onSeek(station.index)}
+              />
+            )}
 
             <Label
               position={[0, 3.2, station.z]}
@@ -340,22 +373,6 @@ function CoordinateWorld({
   )
 }
 
-function formatImmersiveSummary(plot) {
-  if (!plot) return 'Calcula un método o carga ejemplo'
-  if (plot.root !== undefined && Number.isFinite(Number(plot.root))) {
-    return `${plot.converged ? 'Raíz' : 'Aprox'}: ${Number(plot.root).toFixed(8)}`
-  }
-  if (plot.y_eval !== undefined && Number.isFinite(Number(plot.y_eval))) {
-    return `P(${plot.x_eval}) = ${Number(plot.y_eval).toFixed(8)}`
-  }
-  if (plot.integral !== undefined && Number.isFinite(Number(plot.integral))) {
-    return `Integral ≈ ${Number(plot.integral).toFixed(8)}`
-  }
-  const last = plot.steps?.at(-1)
-  const val = last?.value ?? last?.next_x
-  return Number.isFinite(val) ? `Resultado: ${Number(val).toFixed(8)}` : 'Cálculo activo'
-}
-
 export default function ImmersiveLab({
   plot,
   methodLabel,
@@ -371,14 +388,22 @@ export default function ImmersiveLab({
   const session = useXR(state => state.session)
   const [resetRevision, setResetRevision] = useState(0)
 
+  const page = Math.floor(step / MAX_STATIONS)
+
   const geometry = useMemo(
-    () => buildImmersiveNewton(plot),
-    [plot]
+    () => buildImmersiveNewton(plot, page),
+    [plot, page]
   )
 
   const depth = geometry?.depth ?? 4
-  const total = geometry?.stations.length ?? 0
-  const current = geometry?.stations[step]
+  const total = geometry?.totalSteps ?? 0
+  const current = geometry?.stations.find(
+    station => station.index === step
+  )
+
+  const navigationDepth = geometry?.pageCount > 1
+    ? (MAX_STATIONS - 1) * STATION_DISTANCE
+    : depth
 
   function recenter() {
     setResetRevision(value => value + 1)
@@ -390,7 +415,7 @@ export default function ImmersiveLab({
 
       {immersive ? (
         <UserNavigation
-          depth={depth}
+          depth={navigationDepth}
           resetRevision={resetRevision}
         />
       ) : (
@@ -430,6 +455,17 @@ export default function ImmersiveLab({
         height={1.45}
         title="NumQuest Immersive"
       >
+        {geometry?.pageCount > 1 && (
+          <Label
+            position={[0, 0.51, 0.04]}
+            size={0.032}
+            width={1.2}
+            color="#93c5fd"
+          >
+            {`Grupo ${geometry.pageIndex + 1}/${geometry.pageCount}`}
+          </Label>
+        )}
+
         {plot ? (
           <Label
             position={[0, 0.35, 0.04]}

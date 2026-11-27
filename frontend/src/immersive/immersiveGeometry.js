@@ -12,13 +12,15 @@ export const SUPPORTED_IMMERSIVE_KINDS = [
   'simpson_3_8',
 ]
 
+const ROOT_KINDS = ['newton', 'bisection', 'secant']
+const INTERPOLATION_KINDS = ['lagrange', 'neville']
+
 function buildCurveSegments(samples, X, Y, z) {
-  if (!Array.isArray(samples)) return []
   const segments = []
   let current = []
 
-  for (const [x, y] of samples) {
-    if (!Number.isFinite(y)) {
+  for (const [x, y] of samples ?? []) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
       if (current.length > 1) segments.push(current)
       current = []
       continue
@@ -26,7 +28,10 @@ function buildCurveSegments(samples, X, Y, z) {
 
     const point = [X(x), Y(y), z]
 
-    if (current.length && Math.abs(point[1] - current.at(-1)[1]) > 1) {
+    if (
+      current.length &&
+      Math.abs(point[1] - current.at(-1)[1]) > 1
+    ) {
       if (current.length > 1) segments.push(current)
       current = []
     }
@@ -35,106 +40,155 @@ function buildCurveSegments(samples, X, Y, z) {
   }
 
   if (current.length > 1) segments.push(current)
+
   return segments
 }
 
-export function buildImmersiveNewton(plot) {
+export function buildImmersiveNewton(plot, page = 0) {
   if (
     !SUPPORTED_IMMERSIVE_KINDS.includes(plot?.kind) ||
     !plot.steps?.length
   ) return null
 
-  const visibleSteps = plot.steps.slice(0, MAX_STATIONS)
   const [xmin, xmax] = plot.domain
   const [ymin, ymax] = plot.range
 
-  const xExtent = Math.max(Math.abs(xmin), Math.abs(xmax), 0.1)
-  const yExtent = Math.max(Math.abs(ymin), Math.abs(ymax), 0.1)
+  const pageCount = Math.ceil(
+    plot.steps.length / MAX_STATIONS
+  )
 
-  const X = x => (x / xExtent) * 3.5
-  const Y = y => 1.6 + (y / yExtent) * 1.35
-  const Z = iteration => -iteration * STATION_DISTANCE
+  const pageIndex = Math.max(
+    0,
+    Math.min(
+      pageCount - 1,
+      Number.isFinite(page) ? Math.floor(page) : 0
+    )
+  )
 
-  const isInterpolation = ['lagrange', 'neville'].includes(plot.kind)
-  const isIntegration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
+  const pageStart = pageIndex * MAX_STATIONS
 
-  const stations = visibleSteps.map((step, index) => {
+  const visibleSteps = plot.steps.slice(
+    pageStart,
+    pageStart + MAX_STATIONS
+  )
+
+  const xExtent = Math.max(
+    Math.abs(xmin), Math.abs(xmax), 0.1
+  )
+
+  const yExtent = Math.max(
+    Math.abs(ymin), Math.abs(ymax), 0.1
+  )
+
+  const X = x => x / xExtent * 3.5
+  const Y = y => 1.6 + y / yExtent * 1.35
+
+  const Z = index =>
+    -(index - pageStart) * STATION_DISTANCE
+
+  const isRoot = ROOT_KINDS.includes(plot.kind)
+
+  const isInterpolation =
+    INTERPOLATION_KINDS.includes(plot.kind)
+
+  const stations = visibleSteps.map((step, localIndex) => {
+    const index = pageStart + localIndex
     const z = Z(index)
 
-    // Curva principal (o curva parcial de cada paso en interpolación si existe)
-    const stepSamples = step.samples ?? plot.samples
-    const segments = buildCurveSegments(stepSamples, X, Y, z)
+    const point = (x, y) => [X(x), Y(y), z]
 
-    // Líneas auxiliares según el tipo de método
+    const segments = buildCurveSegments(
+      plot.samples, X, Y, z
+    )
+
     let tangent = null
     let areaPolygon = null
-
-    if (plot.kind === 'newton' && Number.isFinite(step.slope) && step.slope !== 0) {
-      const x1 = step.x + (ymin - step.fx) / step.slope
-      const x2 = step.x + (ymax - step.fx) / step.slope
-      const left = Math.max(xmin, Math.min(x1, x2))
-      const right = Math.min(xmax, Math.max(x1, x2))
-
-      if (left < right) {
-        const lineY = x => step.fx + step.slope * (x - step.x)
-        tangent = [
-          [X(left), Y(lineY(left)), z],
-          [X(right), Y(lineY(right)), z],
-        ]
-      }
-    } else if (plot.kind === 'secant' && Number.isFinite(step.x_prev) && Number.isFinite(step.x)) {
-      const fxPrev = step.fx_prev ?? 0
-      const fxCurr = step.fx ?? 0
-      tangent = [
-        [X(step.x_prev), Y(fxPrev), z],
-        [X(step.x), Y(fxCurr), z],
-        [X(step.next_x), Y(0), z],
-      ]
-    } else if (plot.kind === 'bisection' && Number.isFinite(step.a) && Number.isFinite(step.b)) {
-      tangent = [
-        [X(step.a), Y(ymin * 0.6), z],
-        [X(step.a), Y(ymax * 0.6), z],
-      ]
-      areaPolygon = [
-        [X(step.b), Y(ymin * 0.6), z],
-        [X(step.b), Y(ymax * 0.6), z],
-      ]
-    } else if (isIntegration && Number.isFinite(step.a) && Number.isFinite(step.b)) {
-      const fa = step.fa ?? 0
-      const fb = step.fb ?? 0
-      areaPolygon = [
-        [X(step.a), Y(0), z],
-        [X(step.a), Y(fa), z],
-        [X(step.b), Y(fb), z],
-        [X(step.b), Y(0), z],
-        [X(step.a), Y(0), z],
-      ]
-    }
-
-    // Marcadores de punto actual y siguiente/evaluado
-    let currentPoint
-    let nextPoint
+    let current = null
+    let next = null
     let primaryValue
+    const extraPoints = []
+    const guides = []
 
-    if (isInterpolation) {
-      const evalX = plot.x_eval ?? (xmin + xmax) / 2
-      const val = step.value ?? 0
-      currentPoint = [X(evalX), Y(0), z]
-      nextPoint = [X(evalX), Y(val), z]
-      primaryValue = val
-    } else if (isIntegration) {
-      const midX = ((step.a ?? xmin) + (step.b ?? xmax)) / 2
-      const val = step.value ?? 0
-      currentPoint = [X(step.a ?? xmin), Y(step.fa ?? 0), z]
-      nextPoint = [X(midX), Y(step.fb ?? 0), z]
-      primaryValue = val
+    if (isRoot) {
+      current = point(step.x, step.fx)
+      next = point(step.next_x, 0)
+      primaryValue = step.next_x
+
+      if (
+        ['newton', 'secant'].includes(plot.kind) &&
+        Number.isFinite(step.slope) &&
+        step.slope !== 0
+      ) {
+        const x1 = step.x + (ymin - step.fx) / step.slope
+        const x2 = step.x + (ymax - step.fx) / step.slope
+
+        const left = Math.max(xmin, Math.min(x1, x2))
+        const right = Math.min(xmax, Math.max(x1, x2))
+
+        const lineY = x =>
+          step.fx + step.slope * (x - step.x)
+
+        if (left < right) {
+          tangent = [
+            point(left, lineY(left)),
+            point(right, lineY(right)),
+          ]
+        }
+      }
+
+      if (plot.kind === 'secant') {
+        extraPoints.push(
+          point(step.previous_x, step.previous_fx)
+        )
+      }
+
+      if (plot.kind === 'bisection') {
+        extraPoints.push(
+          point(step.a, step.fa),
+          point(step.b, step.fb)
+        )
+
+        for (const x of [step.a, step.b]) {
+          guides.push([
+            point(x, ymin),
+            point(x, ymax),
+          ])
+        }
+      }
+    } else if (isInterpolation) {
+      const [evalX, evalY] = plot.evaluation
+
+      // Punto correspondiente al polinomio final.
+      current = point(evalX, evalY)
+
+      // El resultado parcial se conserva como dato.
+      primaryValue = step.value
+
+      for (const i of step.node_indices) {
+        const [x, y] = plot.nodes[i]
+        extraPoints.push(point(x, y))
+      }
     } else {
-      const currX = step.x ?? step.next_x ?? 0
-      const currY = step.fx ?? 0
-      const nxtX = step.next_x ?? currX
-      currentPoint = [X(currX), Y(currY), z]
-      nextPoint = [X(nxtX), Y(0), z]
-      primaryValue = nxtX
+      // Aproximacion polinomica real del bloque.
+      const points = step.points.map(
+        ([x, y]) => point(x, y)
+      )
+
+      current = points[0]
+      next = points.at(-1)
+      primaryValue = step.value
+
+      areaPolygon = [
+        point(step.a, 0),
+        ...points,
+        point(step.b, 0),
+        point(step.a, 0),
+      ]
+
+      for (const i of step.node_indices.slice(1, -1)) {
+        const [x, y] = plot.nodes[i]
+        extraPoints.push(point(x, y))
+      }
     }
 
     return {
@@ -143,9 +197,13 @@ export function buildImmersiveNewton(plot) {
       segments,
       tangent,
       areaPolygon,
-      current: currentPoint,
-      next: nextPoint,
+      guides,
+      extraPoints,
+      current,
+      next,
       primaryValue,
+      isRoot,
+      isInterpolation,
       label: step.label ?? `Iteración ${index + 1}`,
       data: step,
     }
@@ -153,6 +211,10 @@ export function buildImmersiveNewton(plot) {
 
   return {
     stations,
+    pageIndex,
+    pageCount,
+    pageStart,
+    totalSteps: plot.steps.length,
     xmin,
     xmax,
     ymin,
@@ -160,6 +222,34 @@ export function buildImmersiveNewton(plot) {
     X,
     Y,
     Z,
-    depth: Math.abs(Z(stations.length - 1)),
+    depth: (stations.length - 1) * STATION_DISTANCE,
   }
+}
+
+export function formatImmersiveSummary(plot) {
+  if (!plot) return 'Calcula un método o carga ejemplo'
+
+  if (ROOT_KINDS.includes(plot.kind)) {
+    if (plot.converged && Number.isFinite(plot.root)) {
+      return `Raíz: ${plot.root.toFixed(8)}`
+    }
+
+    const last = plot.steps?.at(-1)?.next_x
+
+    return Number.isFinite(last)
+      ? `Sin converger: ${last.toFixed(8)}`
+      : 'Sin convergencia'
+  }
+
+  if (INTERPOLATION_KINDS.includes(plot.kind)) {
+    const [x, y] = plot.evaluation
+
+    return `P(${x}) = ${y.toFixed(8)}`
+  }
+
+  if (Number.isFinite(plot.integral)) {
+    return `Integral ≈ ${plot.integral.toFixed(8)}`
+  }
+
+  return 'Cálculo activo'
 }
