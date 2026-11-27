@@ -11,6 +11,7 @@ export default function IterationControls({
   const integration = ['trapezoid', 'simpson_1_3', 'simpson_3_8'].includes(plot.kind)
   const linear = plot.kind === 'linear_system'
   const ode = plot.kind === 'ode'
+  const supplemental = plot.kind === 'supplemental'
   const hasValue = interpolation || integration || ode
 
   return (
@@ -19,13 +20,15 @@ export default function IterationControls({
         <div>
           <span className="lab-eyebrow">Procedimiento</span>
           <h3>
-            {hasValue || linear ? current.label : 'Iteración'}
+            {hasValue || linear || supplemental ? current.label : 'Iteración'}
             {' · '}{step + 1} de {total}
           </h3>
         </div>
         <strong>{linear
           ? 'Matriz 3×4'
-          : (hasValue ? current.value : current.next_x).toFixed(8)
+          : supplemental
+            ? current.valueLabel
+            : (hasValue ? current.value : current.next_x).toFixed(8)
         }</strong>
       </div>
 

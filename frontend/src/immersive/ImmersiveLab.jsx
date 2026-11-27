@@ -16,6 +16,7 @@ import { readThumbstick, snapTurn } from './locomotion.js'
 import { LinearWorld } from './LinearWorld.jsx'
 import ODEGeometry from '../scenes/ODEGeometry.jsx'
 import ImmersiveControls from './ImmersiveControls.jsx'
+import SupplementalWorld from '../scenes/SupplementalWorld.jsx'
 import {
   buildImmersiveNewton,
   formatImmersiveSummary,
@@ -427,12 +428,13 @@ export default function ImmersiveLab({
   )
 
   const linear = plot?.kind === 'linear_system'
+  const supplemental = plot?.kind === 'supplemental'
 
-  const total = linear
+  const total = linear || supplemental
     ? plot.steps.length
     : geometry?.totalSteps ?? 0
 
-  const current = linear
+  const current = linear || supplemental
     ? plot.steps[step]
     : geometry?.stations[0]
 
@@ -476,6 +478,10 @@ export default function ImmersiveLab({
         <LinearWorld plot={plot} step={step} />
       )}
 
+      {supplemental && (
+        <SupplementalWorld plot={plot} step={step} />
+      )}
+
       {geometry && (
         <CoordinateWorld
           geometry={geometry}
@@ -492,7 +498,9 @@ export default function ImmersiveLab({
           ? `Solución: (${plot.solution.map(
               value => Number(value.toPrecision(5))
             ).join(', ')})`
-          : formatImmersiveSummary(plot)}
+          : supplemental
+            ? current?.valueLabel ?? plot.title
+            : formatImmersiveSummary(plot)}
         stepLabel={current
           ? `${current.label} · ${step + 1}/${total}${
               geometry?.pageCount > 1

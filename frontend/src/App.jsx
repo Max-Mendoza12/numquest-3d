@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { XR, useXR } from '@react-three/xr'
 import { CATEGORIES } from './config/categories.js'
@@ -8,6 +8,8 @@ import ImmersiveLab from './immersive/ImmersiveLab.jsx'
 import { LinearScene, LinearAR } from './immersive/LinearWorld.jsx'
 import { useIterationPlayer } from './hooks/useIterationPlayer.js'
 import MathScene3D from './scenes/MathScene3D.jsx'
+import { buildSupplementalPlot } from './scenes/supplementalPlot.js'
+import { SupplementalScene } from './scenes/SupplementalWorld.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
 import { useMathWorkspace } from './hooks/useMathWorkspace.js'
 import MethodForm from './components/MethodForm.jsx'
@@ -42,16 +44,17 @@ function WorkspaceScene(props) {
   const mode = useXR(state => state.mode)
   const inAR = mode === 'immersive-ar'
   const inVR = mode === 'immersive-vr'
-  const supportedPlot = SUPPORTED_PLOT_KINDS.includes(props.result?.plot?.kind)
-    ? props.result.plot
-    : null
+  const visualPlot = props.plot
+  const supportedPlot = visualPlot?.kind === 'supplemental'
+    ? null
+    : visualPlot
 
   if (inVR || (!inAR && props.immersivePreview)) {
     return (
       <ImmersiveLab
         methodLabel={props.methodLabel}
         formState={props.formState}
-        plot={supportedPlot}
+        plot={visualPlot}
         step={props.step}
         playing={props.playing}
         onSeek={props.onSeek}
@@ -87,6 +90,10 @@ function WorkspaceScene(props) {
     )
   }
 
+  if (visualPlot?.kind === 'supplemental') {
+    return <SupplementalScene plot={visualPlot} step={props.step} />
+  }
+
   if (supportedPlot) {
     return (
       <NewtonScene
@@ -116,9 +123,16 @@ export default function App() {
     formProps,
   } = useMathWorkspace()
 
-  const plot = SUPPORTED_PLOT_KINDS.includes(result?.plot?.kind)
-    ? result.plot
-    : null
+  const plot = useMemo(() => {
+    if (
+      SUPPORTED_PLOT_KINDS.includes(result?.plot?.kind) &&
+      result.plot.steps?.length
+    ) {
+      return result.plot
+    }
+
+    return buildSupplementalPlot(result, formProps.method)
+  }, [result, formProps.method])
 
   const { step, playing, seek, toggle } = useIterationPlayer(plot)
 
@@ -261,6 +275,7 @@ export default function App() {
                   formState={formProps}
                   category={categoryId}
                   result={result}
+                  plot={plot}
                   titleLabel={displayedTitle}
                   step={step}
                   playing={playing}
@@ -272,6 +287,12 @@ export default function App() {
                 />
               </XR>
             </Canvas>
+
+            {result && !plot && immersivePreview && (
+              <div className="lab-canvas-hint">
+                El resultado no contiene datos gráficos disponibles.
+              </div>
+            )}
 
             {!result && !immersivePreview && (
               <div className="lab-canvas-hint">
